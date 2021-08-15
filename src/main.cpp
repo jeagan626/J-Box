@@ -8,10 +8,11 @@ SFE_UBLOX_GNSS myGNSS;
 U8G2_T6963_240X128_F_8080 u8g2(U8G2_R2, 2, 14, 7, 8, 6, 20, 21, 5, /*enable/wr=*/ 27 , /*cs/ce=*/ 26, /*dc=*/ 25, /*reset=*/24); // Connect RD (orange) with +5V, FS0 and FS1 with GND
 
 
-#define YP A16  // must be an analog pin, use "An" notation!
-#define XM A17  // must be an analog pin, use "An" notation!
-#define YM A14  // can be a digital pin
-#define XP A15   // can be a digital pin
+#define YP A3  // must be an analog pin, use "An" notation!
+#define XM A8  // must be an analog pin, use "An" notation!
+#define YM A1  // can be a digital pin
+#define XP A2   // can be a digital pin
+const int backlightPin = 23;
 #define MINPRESSURE 10
 #define MAXPRESSURE 1000
 TSPoint p;
@@ -22,8 +23,8 @@ p.y =  map(p.y,190,860,0,128);
 p.z = abs(map(p.z,900,300,0,255));
 }
 TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
-enum screens {menu,setupScreen,gps,naughtTo60Timer};
-screens currentScreen = setupScreen;
+enum screens {menu,settings,gps,naughtTo60Timer};
+screens currentScreen = settings;
 void menuScreen();
 void setupScreen();
 void gpsScreen();
@@ -33,7 +34,9 @@ void naughtTo60Screen();
 
 void setup() {
   // put your setup code here, to run once:
-u8g2.begin();
+  pinMode(backlightPin,OUTPUT);
+  analogWrite(backlightPin,100);
+  u8g2.begin();
   //u8g2.setFlipMode(0);
   u8g2.setContrast(255);
   Wire.begin();
@@ -42,7 +45,6 @@ u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB14_tr);
   u8g2.drawStr(32,20,"Booting Up");
   u8g2.sendBuffer();
-
 
 }
 
