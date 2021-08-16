@@ -1,5 +1,5 @@
-#include "SparkFun_u-blox_GNSS_Arduino_Library.h" //http://librarymanager/All#SparkFun_u-blox_GNSS
-#include <U8g2lib.h>
+#include "gps.h"
+#include "display.h"
 SFE_UBLOX_GNSS myGNSS;
 float latitude = 0;
 float longitude = 0;
@@ -19,17 +19,20 @@ bool usingAutoHNRAtt = false;
 bool GPSconnected = false;
 bool performanceState = false;
 bool newUpdate = false;
+
 void setupGPS()
 {
+    Wire.begin();
+    Wire.setClock(40000);
     if(myGNSS.begin() == false) //Connect to the Ublox module using Wire port
   {
-    u8g2.setCursor(32,40);
-    u8g2.print("gps not functional");
+    //u8g2.setCursor(32,40);
+    //u8g2.print("gps not functional");
   }
   else
   {
-    u8g2.setCursor(32,40);
-    u8g2.print("GPS connected!");
+    // u8g2.setCursor(32,40);
+    // u8g2.print("GPS connected!");
     GPSconnected = true;
   }
 
