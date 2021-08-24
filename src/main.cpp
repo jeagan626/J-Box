@@ -2,7 +2,9 @@
 #include "gps.h"
 void setup() {
   // put your setup code here, to run once:
-  initialiseDisplay();
+  initializeDisplay();
+  menuScreen();
+  
 }
 
 void loop() {

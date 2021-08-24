@@ -11,12 +11,8 @@ p.z = abs(map(p.z,900,300,0,255));
 TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
 enum screens {menu,settings,gps,naughtTo60Timer};
 screens currentScreen = settings;
-void menuScreen();
-void setupScreen();
-void gpsScreen();
-void naughtTo60Screen();
 
-void initialiseDisplay()
+void initializeDisplay()
 {
     pinMode(backlightPin,OUTPUT);
     analogWrite(backlightPin,100);
@@ -27,6 +23,29 @@ void initialiseDisplay()
     u8g2.setFont(u8g2_font_ncenB14_tr);
     u8g2.drawStr(32,20,"Booting Up");
     u8g2.sendBuffer();
+}
+void menuScreen()
+{
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+    u8g2.drawStr(32,18,"Menu");
+    u8g2.drawLine(0,19,240,19);
+    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+    u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+    u8g2.drawStr(0,40,"Device Settings");
+    u8g2.drawStr(0,60,"");
+    u8g2.drawStr(0,80,"Acceleration Tests");
+    
+
+    
+    
+    
+    u8g2.sendBuffer();
+    u8g2.setDrawColor(1); // reset the draw color back to the default
+
+
+
+
 }
 // void displayGPSbootup()
 // {
