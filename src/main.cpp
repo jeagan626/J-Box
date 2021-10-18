@@ -2,8 +2,10 @@
 #include "gps.h"
 void setup() {
   // put your setup code here, to run once:
+  Serial.begin(9600);
   initializeDisplay();
-  menuScreen();
+  
+
   
 }
 
@@ -15,6 +17,6 @@ void loop() {
   // have performance metric modes that test 0-60, 5-60, lateral acceleration...
   //... acceleration by RPM (Dyno Mode)
   // math channels that calculate MPG, Wh/mi, BSFC (MPH/S / (cc/s,G/s)) VE? (cc/s)
-
+menuScreen();
 }
 
