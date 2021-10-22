@@ -6,6 +6,7 @@
 void menuScreen();
 void setupScreen();
 void gpsScreen();
+void enduranceLayout();
 void naughtTo60Screen();
 void initializeDisplay();
 #define YP A3  // must be an analog pin, use "An" notation!

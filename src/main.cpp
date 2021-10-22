@@ -3,7 +3,9 @@
 void setup() {
   // put your setup code here, to run once:
   initializeDisplay();
-  menuScreen();
+  enduranceLayout();
+  // Serial.begin(9600);
+  // Serial.println("test");
   
 }
 
