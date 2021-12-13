@@ -2,7 +2,8 @@
 #define GPS_H
 #include "SparkFun_u-blox_GNSS_Arduino_Library.h" //http://librarymanager/All#SparkFun_u-blox_GNSS
 #include <Wire.h> //Needed for I2C to GPS
-void setupGPS();
+int setupGPS();
+void updateGPS();
 extern float latitude;
 extern float longitude;
 extern float gpsSpeed;
