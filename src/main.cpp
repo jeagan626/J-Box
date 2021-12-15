@@ -1,13 +1,15 @@
 #include "display.h"
 #include "gps.h"
-#include <U8g2lib.h>
-volatile int tachCount = 0;
+#include <U8g2lib.h> 
+volatile int tachPulse = 0;
+int tachCount = 0;
+int pulseInterval = 100;
 int tachFreq = 0;
 int tachRpm = 0;
 elapsedMillis pulseUpdate;
-void tachPulse()
+void tachPulseEvent()
 {
-  tachCount++;
+  tachPulse++;
 }
 
 
@@ -21,28 +23,38 @@ void setup() {
   initializeDisplay();
   Serial.begin(9600);
   Serial.println("test");
-  attachInterrupt(32,tachPulse,FALLING);
+  attachInterrupt(32,tachPulseEvent,CHANGE);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
-  initializeBakerFSAEscreen();
+  initializeEaganM3_Screen;
 }
 
 void loop() {
-if(pulseUpdate > 100)
+if(pulseUpdate > 50)
 {
   noInterrupts();
-  //tachFreq = (tachCount *1000) / pulseUpdate; // measure the frequency of the tach wire
-  tachFreq = tachCount * (1000.0 / pulseUpdate);
-  Serial.println(tachCount);
-  Serial.println(tachFreq);
-  tachCount = 0;
+  tachCount = tachPulse;
+  pulseInterval = pulseUpdate;
+  tachPulse = 0;
   pulseUpdate = 0;
   interrupts();
+  int newtachFreq = (tachCount * 500) / pulseInterval; // measure the frequency of the tach wire (change interupt means two counts per pulse)
+   if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
+   tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
+   }else{ // use the new frequency
+  tachFreq = newtachFreq;
+  }
+  //tachFreq = tachCount * (1000.0 / pulseUpdate);
+  Serial.print(tachCount);
+  Serial.print("  ");
+  Serial.print(pulseInterval);
+  Serial.print("  ");
+  Serial.println(tachFreq);
   tachRpm = tachFreq * 20;
-  drawBoxGauge(tachRpm, 8500,2000);
+  //drawBoxGauge(tachRpm, 8500,2000,7500);
 }
 
-BakerFSAEscreen();
+//BakerFSAEscreen();
 
   // put your main code here, to run repeatedly:
   // toDo have simple setup screen function to walk user through setup options
