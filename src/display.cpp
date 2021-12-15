@@ -598,7 +598,7 @@ void drawBackground2() {
 }
 */
 
-    class boxGauge
+class boxGauge
     {
     public:
     int padding = 2;
@@ -608,6 +608,17 @@ void drawBackground2() {
     int height = screeny/5;
     int max = 12000; int cutoff = 4000; int redLine = 10000;
     bool shiftText = false;
+   
+    void displayValue(int current){
+     int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
+     if (current <= cutoff) { // this part draws and clears the filled in bars
+        u8g2.drawBox(xStart,yStart,int(width*(float(current/2.0)/float(max))),height);
+        } else {
+        u8g2.drawBox(xStart,yStart,cutoffWidth,height);
+        u8g2.drawBox(xStart+cutoffWidth,yStart,int((width-cutoffWidth)*(float(current - cutoff)/float(max - cutoff))),height);
+        } 
+    }
+
     void drawBoxGauge(int current) {
     u8g2.setDrawColor(0);
     u8g2.drawBox(xStart,yStart,screenx-xStart,height);
@@ -616,12 +627,12 @@ void drawBackground2() {
 
     int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
 
-    if (current <= cutoff) {
+    if (current <= cutoff) { // this part draws and clears the filled in bars
         u8g2.drawBox(xStart,yStart,int(width*(float(current/2.0)/float(max))),height);
     } else {
         u8g2.drawBox(xStart,yStart,cutoffWidth,height);
         u8g2.drawBox(xStart+cutoffWidth,yStart,int((width-cutoffWidth)*(float(current - cutoff)/float(max - cutoff))),height);
-    }
+    } 
     for (int i = 0; i<=max; i+=1000) {
         int offset;
         if (i<=cutoff) {
@@ -662,7 +673,33 @@ void drawBackground2() {
     u8g2.sendBuffer();
  }
 };
+class digitalGauge
+{
+    //todo change the use of string to the sprintf function allowing more control over the printing processs
+    public:
+    int x0 = 12;
+    int y0 = screeny/2+20;
+    uint8_t digits = 2;
 
+    void display(int val)
+    {
+    clearBox(x0,y0-30,40,31);
+    u8g2.setFont(u8g2_font_logisoso30_tr);
+    if (val<10) {
+        u8g2.drawStr(x0+20,y0,String(val).c_str());
+    } else {
+        u8g2.drawStr(x0,y0,String(val).c_str());
+    }
+    u8g2.sendBuffer();
+    }
+
+    void initialize(int val)
+    {
+    u8g2.setFont(u8g2_font_VCR_OSD_mf);
+    u8g2.drawStr(52,y0,"mph");
+    display(val);
+    }
+};
 void initializeEaganM3_Screen(int myRPM = 0)
 {
     
@@ -673,14 +710,16 @@ void initializeEaganM3_Screen(int myRPM = 0)
     tachometer.cutoff = 2000;
     tachometer.shiftText = true;
     tachometer.drawBoxGauge(myRPM);
-    boxGauge speed;
-    speed.yStart = 80;
-    speed.redLine = 7500;
-    speed.cutoff = 2000;
-    speed.drawBoxGauge(myRPM);
+    digitalGauge speed;
+    speed.initialize(map(analogRead(A14),0,1023,0,150));
+    // boxGauge speed;
+    // speed.yStart = 80;
+    // speed.redLine = 7500;
+    // speed.cutoff = 2000;
+    // speed.drawBoxGauge(myRPM);
     //u8g2.sendBuffer();
 }
-void EaganM3_Screen()
+void EaganM3_Screen(int myRPM = 0)
 {
 
 }

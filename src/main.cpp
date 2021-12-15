@@ -23,6 +23,7 @@ void setup() {
   initializeDisplay();
   Serial.begin(9600);
   Serial.println("test");
+  pinMode(32,INPUT);
   attachInterrupt(32,tachPulseEvent,CHANGE);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
@@ -53,7 +54,6 @@ if(pulseUpdate > 50)
   tachRpm = tachFreq * 20;
   initializeEaganM3_Screen(tachRpm);
 }
-
 //BakerFSAEscreen();
 
   // put your main code here, to run repeatedly:
