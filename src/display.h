@@ -11,7 +11,7 @@ void naughtTo60Screen();
 void initializeDisplay();
 void initializeBakerFSAEscreen();
 void BakerFSAEscreen();
-void initializeEaganM3_Screen();
+void initializeEaganM3_Screen(int myRPM = 0);
 void EaganM3_Screen();
 void initializeEaganInsightScreen();
 void drawMph(int mph);

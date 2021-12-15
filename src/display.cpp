@@ -168,7 +168,7 @@ void initializeDisplay()
     u8g2.drawStr(160,10,"J-Box");
     u8g2.drawStr(160,23,"Bootup");
     u8g2.sendBuffer();
-    delay(5000);
+    delay(2000);
     u8g2.clearBuffer();
 }
 void initializeBakerFSAEscreen()
@@ -270,17 +270,10 @@ void BakerFSAEscreen()
     lastGearUpdate = millis();
   }
 }
-void initializeEaganM3_Screen()
-{
-    drawBoxGauge(rpm, 8500, 2000, 7900);
-}
-void EaganM3_Screen()
-{
 
-}
 void initializeEaganInsightScreen()
 {
-    drawBoxGauge(rpm, 6500, 1000, 5800);
+    //drawBoxGauge(rpm, 6500, 1000, 5800);
 }
 void menuScreen()
 {
@@ -546,7 +539,7 @@ void drawBackground2() {
 
 }
 
-void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000) {
+/* void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000) {
     int padding = 2;
     int xStart = padding;
     int yStart = padding;
@@ -603,7 +596,95 @@ void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000) 
     u8g2.drawStr(xStart+width+3*newFontx+xOff-6,yStart+height-yOff,String((current%1000)/100).c_str());
     u8g2.sendBuffer();
 }
+*/
 
+    class boxGauge
+    {
+    public:
+    int padding = 2;
+    int xStart = padding;
+    int yStart = padding;
+    int width = screenx-2*padding-40;
+    int height = screeny/5;
+    int max = 12000; int cutoff = 4000; int redLine = 10000;
+    bool shiftText = false;
+    void drawBoxGauge(int current) {
+    u8g2.setDrawColor(0);
+    u8g2.drawBox(xStart,yStart,screenx-xStart,height);
+    u8g2.setDrawColor(1);
+    u8g2.drawFrame(xStart,yStart,width,height);
+
+    int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
+
+    if (current <= cutoff) {
+        u8g2.drawBox(xStart,yStart,int(width*(float(current/2.0)/float(max))),height);
+    } else {
+        u8g2.drawBox(xStart,yStart,cutoffWidth,height);
+        u8g2.drawBox(xStart+cutoffWidth,yStart,int((width-cutoffWidth)*(float(current - cutoff)/float(max - cutoff))),height);
+    }
+    for (int i = 0; i<=max; i+=1000) {
+        int offset;
+        if (i<=cutoff) {
+            offset=int((float(i)/float(max))*width)/2;
+        } else {
+            offset=cutoffWidth+int((float(i-cutoff)/float(max-cutoff))*(width-cutoffWidth));
+        }
+        if (i==redLine) {
+            u8g2.drawVLine(xStart + offset, yStart, 5+height);
+        } else {
+            u8g2.drawVLine(xStart + offset, yStart+height, 5);
+        }
+        if (i%2000!=0 && i<=cutoff) {
+            continue;
+        }
+        u8g2.setFont(u8g2_font_bitcasual_tn);
+        int xfontoff = (i<10000) ? 2 : 5;
+        u8g2.drawStr(xStart + offset - xfontoff, yStart+height+5+8,String(i/1000).c_str());
+    }
+    u8g2.setFont(u8g2_font_logisoso18_tf);
+    int newFontx = 11;
+    int yOff = 2;
+    int xOff = 2;
+    if (current<redLine) {
+        //clearBox(screenx/2+25,screeny/2+29-32,screenx/2,33);
+        u8g2.drawStr(xStart+width+xOff,yStart+height-yOff,"0");
+        u8g2.drawStr(xStart+width+newFontx+xOff,yStart+height-yOff,String(current/1000).c_str());
+    } else {
+        u8g2.drawStr(xStart+width+xOff,yStart+height-yOff,String(current/1000).c_str());
+        if(shiftText){
+        u8g2.setFont(u8g2_font_logisoso32_tf);
+        u8g2.drawStr(screenx/2+25,screeny/2+29,"SHIFT");
+        }
+        u8g2.setFont(u8g2_font_logisoso18_tf);
+    }
+    u8g2.drawStr(xStart+width+2*newFontx+xOff,yStart+height-yOff,".");
+    u8g2.drawStr(xStart+width+3*newFontx+xOff-6,yStart+height-yOff,String((current%1000)/100).c_str());
+    u8g2.sendBuffer();
+ }
+};
+
+void initializeEaganM3_Screen(int myRPM = 0)
+{
+    
+    //u8g2.clearBuffer();
+    boxGauge tachometer;
+    tachometer.redLine = 7500;
+    tachometer.max = 8500;
+    tachometer.cutoff = 2000;
+    tachometer.shiftText = true;
+    tachometer.drawBoxGauge(myRPM);
+    boxGauge speed;
+    speed.yStart = 80;
+    speed.redLine = 7500;
+    speed.cutoff = 2000;
+    speed.drawBoxGauge(myRPM);
+    //u8g2.sendBuffer();
+}
+void EaganM3_Screen()
+{
+
+}
+//void initilizeBoxGauge
 // void displayGPSbootup()
 // {
 //     u8g2.setCursor(32,40);

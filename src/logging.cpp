@@ -1,15 +1,13 @@
 #include "logging.h"
-
 char logFile[13] = "Log"; //Start each logfile with "Log"
 char dir[64] = "/Datalogs/"; //Store the log files in a folder called "datalogs"
 char logFileDir[77] = " "; // allocate a string to lead to the datalog file we will create
 elapsedMillis milliseconds;
-
+unsigned int lastSeconds = 0;
 time_t getTeensy3Time()
 {
   return (Teensy3Clock.get() - (8 * 3600)); // Shift the time so it is consistant with PST
 }
-
 String millisecond()
   {
     char milisString [4] = "000";
@@ -19,6 +17,20 @@ String millisecond()
     //free(str); // free the allocated space
     return (milisString);
   }
+  
+void updateMillisecond() // this might not be a good idea since the loop speed may be slow enough to constantly reset miliseconds mid second
+{
+  if(second() - lastSeconds > 0) // if one second has passed
+  {
+    lastSeconds = second(); // reset the counter
+    if(milliseconds % 1000 != 0) // check to see if milliseconds has rolled over
+     {
+     // if it hasn't just rolled over then reset it
+      milliseconds = 0;
+    }
+  } 
+}
+
 String constructDateTime(uint8_t i)
 {
   char dateTimeString[16] = "";

@@ -9,6 +9,7 @@ FsFile dataFile;
 
 time_t getTeensy3Time();
 String millisecond();
+void updateMillisecond();
 String constructDateTime(uint8_t i);
 
 //void FilePrintTime(FsFile dataFile, char fullTime);

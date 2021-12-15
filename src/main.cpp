@@ -26,7 +26,7 @@ void setup() {
   attachInterrupt(32,tachPulseEvent,CHANGE);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
-  initializeEaganM3_Screen;
+  initializeEaganM3_Screen();
 }
 
 void loop() {
@@ -51,7 +51,7 @@ if(pulseUpdate > 50)
   Serial.print("  ");
   Serial.println(tachFreq);
   tachRpm = tachFreq * 20;
-  //drawBoxGauge(tachRpm, 8500,2000,7500);
+  initializeEaganM3_Screen(tachRpm);
 }
 
 //BakerFSAEscreen();
