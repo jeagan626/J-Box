@@ -195,6 +195,7 @@ int gIndex = 0;
 int gearDir = 1;
 
 
+
 U8G2_T6963_240X128_F_8080 u8g2(U8G2_R2, 2, 14, 7, 8, 6, 20, 21, 5, /*enable/wr=*/ 27 , /*cs/ce=*/ 26, /*dc=*/ 25, /*reset=*/24); // Connect RD (orange) with +5V, FS0 and FS1 with GND
 TSPoint p;
 void modifyPointToScreen()
@@ -220,10 +221,11 @@ void initializeDisplay()
     u8g2.drawXBM( 80, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
     u8g2.drawXBM( 0, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
     u8g2.setFont(u8g2_font_courR10_tr);
+    u8g2.setFontPosBaseline(); // Set the font position to the bottom
     // u8g2.drawStr(160,10,"J-Box");
     // u8g2.drawStr(160,23,"Bootup");
     u8g2.sendBuffer();
-    delay(8000);
+    delay(2000);
     u8g2.clearBuffer();
 }
 void initializeBakerFSAEscreen()
@@ -399,7 +401,7 @@ void drawCircularBarGauge(int xo, int yo, int rad, double maxValue, double curre
 
 void clearBox(int x0, int y0, int w, int h) {
     //TODO: replace all appearances of the below with this method
-    u8g2.setDrawColor(0);
+    u8g2.setDrawColor(1);
     u8g2.drawBox(x0,y0,w,h);
     u8g2.setDrawColor(1);
 }
@@ -724,57 +726,117 @@ class boxGauge
     }
     u8g2.drawStr(xStart+width+2*newFontx+xOff,yStart+height-yOff,".");
     u8g2.drawStr(xStart+width+3*newFontx+xOff-6,yStart+height-yOff,String((current%1000)/100).c_str());
-    u8g2.sendBuffer();
+    //u8g2.sendBuffer();
  }
 };
 class digitalGauge
 {
     //todo change the use of string to the sprintf function allowing more control over the printing processs
     public:
+    char printFormat [10] = "%i";
+    char unitText [10] = "mph";
     int x0 = 0;
     int y0 = screeny/2+20;
     int maxVal = 199;
-    int maxWidth = 0;
-    int digitHeight = 30;
-    int digitWidth = 20;
-    uint8_t digits = 2;
+
     uint8_t* digitFont = u8g2_font_logisoso30_tr;
     uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
-
     
+    private:
+    int lastValue = 0;
+    int maxDigitWidth = 0;
+    int x0unit = 0;
+    int y0unit = 0;
+    int xUnitOffset = 0;
+    int yUnitOffset = 0;
+    int totalWidth = 0;
+    int x1 = 0;
+    int digitHeight = 0;
+    int digit_y0 = 0;
+    uint8_t tx = 0; // used for the clear box function this is the x cordinate of the area that changes
+    uint8_t ty = 0;
+    uint8_t tw = 0;
+    uint8_t th = 0;
+    
+    public:
+    int xEnd(){
+    return(x1);
+    }
+    void unitLocation (int xOffset, int yOffset = 0)
+    {
+        xUnitOffset = xOffset;
+        yUnitOffset = yOffset;
+    }
+    void findActiveArea()
+    {
+        tx = x0 / 8; // find the smallest possible value for the beginning of the title block
+        tw = ceil(float(maxDigitWidth) / 8); // round up to find the minimum size box that needs to be updated
+        ty = (y0-digitHeight) / 8;
+        th = ceil(float(digitHeight+1)/8);
+    }
     void display(int val)
     {
-    clearBox(x0,y0-digitHeight,maxWidth,digitHeight+1);
+    clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
     u8g2.setFont(digitFont);
     char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
-    sprintf(digitString,"%i",val); // generate a string with the digits in it
+    sprintf(digitString,printFormat,val); // generate a string with the digits in it
     #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
-    u8g2.drawStr(x0+maxWidth-currentWidth,y0,digitString);
-    u8g2.sendBuffer();
+    #define digit_x0 x0+maxDigitWidth-currentWidth
+    u8g2.drawStr(digit_x0,y0,digitString);
+    //u8g2.updateDisplayArea(tx,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
+    //u8g2.sendBuffer();
     }
 
     void initialize(int val)
     {
         u8g2.setFont(digitFont);
-        maxWidth = u8g2.getStrWidth(String(maxVal).c_str());
+        maxDigitWidth = u8g2.getStrWidth(String(maxVal).c_str());
+        digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        digit_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
         u8g2.setFont(unitFont);
-        u8g2.drawStr(x0+maxWidth,y0,"mph");
+        x0unit = x0 + maxDigitWidth + xUnitOffset;
+        y0unit = y0 - yUnitOffset;
+        totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset;
+        x1 = x0 + totalWidth; 
+        findActiveArea();
+        u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
         display(val);
     }
 };
+
+boxGauge tachometer;
+digitalGauge speed;
+digitalGauge xAcel;
+digitalGauge yAcel;
+
+
 void initializeEaganM3_Screen(int myRPM = 0)
 {
-    
     //u8g2.clearBuffer();
-    boxGauge tachometer;
+    //boxGauge tachometer;
     tachometer.redLine = 7500;
     tachometer.max = 8500;
     tachometer.cutoff = 2000;
     tachometer.shiftText = true;
     tachometer.drawBoxGauge(myRPM);
-    digitalGauge speed;
+    //digitalGauge speed;
     speed.initialize(map(analogRead(A14),0,1023,0,156));
-    // boxGauge speed;
+    //digitalGauge xAcel;
+    xAcel.maxVal = 99;
+    xAcel.x0 = speed.xEnd() + 5;
+    strcpy(xAcel.unitText,"xgs\0");
+    xAcel.unitFont = u8g2_font_t0_12_tf;
+    xAcel.unitLocation(-15,33);
+    xAcel.initialize(99);
+    //digitalGauge yAcel;
+    yAcel.maxVal = 99;
+    yAcel.x0 = xAcel.xEnd() + 5;
+    strcpy(yAcel.unitText,"ygs\0");
+    yAcel.unitFont = u8g2_font_t0_12_tf;
+    yAcel.unitLocation(1,10);
+    yAcel.initialize(99);
+    u8g2.sendBuffer();
+     //boxGauge speed;
     // speed.yStart = 80;
     // speed.redLine = 7500;
     // speed.cutoff = 2000;
@@ -783,7 +845,11 @@ void initializeEaganM3_Screen(int myRPM = 0)
 }
 void EaganM3_Screen(int myRPM = 0)
 {
-
+    
+    speed.display(map(analogRead(A14),0,1023,0,156));
+    xAcel.display(99);
+    yAcel.display(99);
+    u8g2.sendBuffer();
 }
 //void initilizeBoxGauge
 // void displayGPSbootup()

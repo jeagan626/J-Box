@@ -7,6 +7,8 @@ int pulseInterval = 100;
 int tachFreq = 0;
 int tachRpm = 0;
 elapsedMillis pulseUpdate;
+elapsedMillis displayUpdateTime;
+IntervalTimer checkPulses;
 void tachPulseEvent()
 {
   tachPulse++;
@@ -31,7 +33,7 @@ void setup() {
 }
 
 void loop() {
-if(pulseUpdate > 50)
+if(pulseUpdate > 40)
 {
   noInterrupts();
   tachCount = tachPulse;
@@ -52,8 +54,11 @@ if(pulseUpdate > 50)
   Serial.print("  ");
   Serial.println(tachFreq);
   tachRpm = tachFreq * 20;
-  initializeEaganM3_Screen(tachRpm);
 }
+displayUpdateTime = 0;
+EaganM3_Screen();
+Serial.println(displayUpdateTime);
+
 //BakerFSAEscreen();
 
   // put your main code here, to run repeatedly:
