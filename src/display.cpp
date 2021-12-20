@@ -401,7 +401,7 @@ void drawCircularBarGauge(int xo, int yo, int rad, double maxValue, double curre
 
 void clearBox(int x0, int y0, int w, int h) {
     //TODO: replace all appearances of the below with this method
-    u8g2.setDrawColor(1);
+    u8g2.setDrawColor(0);
     u8g2.drawBox(x0,y0,w,h);
     u8g2.setDrawColor(1);
 }
@@ -770,9 +770,13 @@ class digitalGauge
     void findActiveArea()
     {
         tx = x0 / 8; // find the smallest possible value for the beginning of the title block
-        tw = ceil(float(maxDigitWidth) / 8); // round up to find the minimum size box that needs to be updated
-        ty = (y0-digitHeight) / 8;
-        th = ceil(float(digitHeight+1)/8);
+        tw = ceil(float(x0 + maxDigitWidth) / 8.0) - tx; // round up to find the minimum size box that needs to be updated
+        ty = (digit_y0) / 8;
+        th = ceil(float(digitHeight)/8.0);
+    }
+    void updateArea()
+    {
+        u8g2.updateDisplayArea(0,ty,30,th); // only update the area required tile cordinates are 8 pixel blocks each
     }
     void display(int val)
     {
@@ -783,7 +787,8 @@ class digitalGauge
     #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
     #define digit_x0 x0+maxDigitWidth-currentWidth
     u8g2.drawStr(digit_x0,y0,digitString);
-    //u8g2.updateDisplayArea(tx,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
+    //u8g2.updateDisplayArea(2,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
+    //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
     //u8g2.sendBuffer();
     }
 
@@ -800,7 +805,16 @@ class digitalGauge
         x1 = x0 + totalWidth; 
         findActiveArea();
         u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
-        display(val);
+        clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
+        u8g2.setFont(digitFont);
+        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        sprintf(digitString,printFormat,val); // generate a string with the digits in it
+        #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
+        #define digit_x0 x0+maxDigitWidth-currentWidth
+        u8g2.drawStr(digit_x0,y0,digitString);
+        //u8g2.updateDisplayArea(tx,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
+        //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
+        //display(val);
     }
 };
 
@@ -812,7 +826,7 @@ digitalGauge yAcel;
 
 void initializeEaganM3_Screen(int myRPM = 0)
 {
-    //u8g2.clearBuffer();
+    u8g2.clearBuffer();
     //boxGauge tachometer;
     tachometer.redLine = 7500;
     tachometer.max = 8500;
@@ -820,36 +834,41 @@ void initializeEaganM3_Screen(int myRPM = 0)
     tachometer.shiftText = true;
     tachometer.drawBoxGauge(myRPM);
     //digitalGauge speed;
+    strcpy(speed.printFormat,"%3i\0");
     speed.initialize(map(analogRead(A14),0,1023,0,156));
     //digitalGauge xAcel;
     xAcel.maxVal = 99;
     xAcel.x0 = speed.xEnd() + 5;
+    //xAcel.y0 = 120; 
     strcpy(xAcel.unitText,"xgs\0");
     xAcel.unitFont = u8g2_font_t0_12_tf;
     xAcel.unitLocation(-15,33);
     xAcel.initialize(99);
     //digitalGauge yAcel;
-    yAcel.maxVal = 99;
-    yAcel.x0 = xAcel.xEnd() + 5;
+    yAcel.maxVal = -99;
+    strcpy(yAcel.printFormat,"%+2i\0");
+    yAcel.x0 = xAcel.xEnd() + 15;
     strcpy(yAcel.unitText,"ygs\0");
     yAcel.unitFont = u8g2_font_t0_12_tf;
     yAcel.unitLocation(1,10);
     yAcel.initialize(99);
-    u8g2.sendBuffer();
+    //u8g2.sendBuffer();
      //boxGauge speed;
     // speed.yStart = 80;
     // speed.redLine = 7500;
     // speed.cutoff = 2000;
     // speed.drawBoxGauge(myRPM);
-    //u8g2.sendBuffer();
+    u8g2.sendBuffer();
 }
 void EaganM3_Screen(int myRPM = 0)
 {
     
     speed.display(map(analogRead(A14),0,1023,0,156));
-    xAcel.display(99);
-    yAcel.display(99);
-    u8g2.sendBuffer();
+    xAcel.display(map(analogRead(A14),0,1023,0,99));
+    yAcel.display(map(analogRead(A14),0,1023,-99,99));
+    
+    speed.updateArea();
+    //u8g2.sendBuffer();
 }
 //void initilizeBoxGauge
 // void displayGPSbootup()
