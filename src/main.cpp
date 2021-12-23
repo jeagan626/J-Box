@@ -58,7 +58,7 @@ if(pulseUpdate > 40)
   tachRpm = tachFreq * 20;
 }
 displayUpdateTime = 0;
-EaganM3_Screen();
+EaganM3_Screen(tachRpm);
 Serial.println(displayUpdateTime);
 
 //BakerFSAEscreen();

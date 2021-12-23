@@ -851,7 +851,6 @@ class digitalGauge
     int y0unit = 0;
     int xUnitOffset = 0;
     int yUnitOffset = 0;
-    int totalWidth = 0;
     int digitHeight = 0;
     int digit_y0 = 0;
     int digit_y1 = 0;
@@ -863,6 +862,8 @@ class digitalGauge
     public:
     int xEnd()
     {
+        u8g2.setFont(unitFont);
+        int totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset;
         int x1 = x0 + totalWidth; 
         return(x1);
     }
@@ -902,8 +903,7 @@ class digitalGauge
         digit_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
         u8g2.setFont(unitFont);
         x0unit = x0 + maxDigitWidth + xUnitOffset;
-        y0unit = y0 - yUnitOffset;
-        totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset; 
+        y0unit = y0 - yUnitOffset; 
         findActiveArea();
         u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
@@ -965,12 +965,7 @@ void initializeEaganM3_Screen(int myRPM = 0)
     yAcel.unitFont = u8g2_font_t0_12_tf;
     yAcel.unitLocation(1,10);
     yAcel.initialize(99);
-    //u8g2.sendBuffer();
-     //boxGauge speed;
-    // speed.yStart = 80;
-    // speed.redLine = 7500;
-    // speed.cutoff = 2000;
-    // speed.drawBoxGauge(myRPM);
+    //lat.y0 = 
     u8g2.sendBuffer();
 }
 void EaganM3_Screen(int myRPM = 0)
@@ -979,7 +974,7 @@ void EaganM3_Screen(int myRPM = 0)
     GPS_status.display("Connected!");
     else
     GPS_status.display("Disconnected");
-    tachometer.display(map(analogRead(A14),0,1023,0,8500));
+    tachometer.display(myRPM);
     speed.display(gpsSpeed);
     xAcel.display(xAccel);
     yAcel.display(yAccel);
