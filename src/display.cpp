@@ -845,7 +845,7 @@ class digitalGauge
     uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
     
     private:
-    int lastValue = 0;
+    int lastVal = 0;
     int maxDigitWidth = 0;
     int x0unit = 0;
     int y0unit = 0;
@@ -862,10 +862,19 @@ class digitalGauge
     public:
     int xEnd()
     {
-        u8g2.setFont(unitFont);
+        u8g2.setFont(unitFont); // set the font to the unit font so the appropriate width can be calculated
         int totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset;
         int x1 = x0 + totalWidth; 
+        // or the max of the x value of xunit+strwidth or x0+digitwidth
         return(x1);
+    }
+    int yEndBottom()
+    {
+        u8g2.setFont(digitFont); // set font to digit font to get values
+        int y1 = y0 + u8g2.getDescent(); // determine how much the digit hangs down below 
+        u8g2.setFont(unitFont); // set the font to the unit font
+        y1 = max(y1,y0unit+u8g2.getDescent()); // the bottom of the object is just max o
+        return(y1);
     }
     void unitLocation (int xOffset, int yOffset = 0)
     {
@@ -886,6 +895,9 @@ class digitalGauge
     }
     void display(int val)
     {
+        if(lastVal == val)
+        return; // don't do anything if no updates need to be made to save time
+        lastVal = val; // save the latest value;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
         char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
