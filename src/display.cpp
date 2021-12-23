@@ -974,7 +974,21 @@ void initializeEaganM3_Screen(int myRPM = 0)
     yAcel.unitFont = u8g2_font_t0_12_tf;
     yAcel.unitLocation(1,10);
     yAcel.initialize(99);
-    //lat.y0 = 
+    lat.y0 = speed.yEndBottom() + 15;
+    lat.digitFont = u8g2_font_6x12_mn;
+    lat.unitFont = u8g2_font_5x7_tr;
+    strcpy(lat.unitText,"*\0");
+    strcpy(lat.printFormat,"%6.4f\0");
+    lat.maxVal = -100.1234;
+    lat.initialize(-100.1234);
+    lon.y0 = speed.yEndBottom() + 15;
+    lon.digitFont = u8g2_font_6x12_mn;
+    lon.unitFont = u8g2_font_5x7_tr;
+    lon.x0 = lat.xEnd() + 30;
+    strcpy(lon.unitText,"*\0");
+    strcpy(lon.printFormat,"%6.4f\0");
+    lon.maxVal = -100.1234;
+    lon.initialize(-100.1234);
     u8g2.sendBuffer();
 }
 void EaganM3_Screen(int myRPM = 0)
@@ -983,10 +997,12 @@ void EaganM3_Screen(int myRPM = 0)
     GPS_status.display("Connected!");
     else
     GPS_status.display("Disconnected");
-    tachometer.display(myRPM);
-    speed.display(gpsSpeed);
+    tachometer.display(map(analogRead(A14),0,1023,0,8500));
+    speed.display(int(gpsSpeed));
     xAcel.display(xAccel);
     yAcel.display(yAccel);
+    lat.display(latitude);
+    lon.display(longitude);
     
     //speed.updateArea();
     u8g2.sendBuffer();
