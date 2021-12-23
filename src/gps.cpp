@@ -36,7 +36,7 @@ void getHNRPVTdata(UBX_HNR_PVT_data_t ubxDataStruct)
   newUpdate = true;
 }
 
-int setupGPS()
+int initializeGPS()
 {
     int error = 0;
     Wire.begin();

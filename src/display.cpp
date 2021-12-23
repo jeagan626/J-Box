@@ -1,7 +1,32 @@
 #include "display.h"
+#include "gps.h"
 #include <string>
 #include <math.h>
+/* Notes about display performance as of 12/20/21
+TLDR: 
+-Avoid calling sendBuffer() as much as possible, aim to do it only once per update cycle and outside of functions or classes
+-Avoid clearing the buffer in performance cases as you then have to reconstruct the buffer which can incur a penlty
+    if there are multiple fonts or functions that must be called in order to format the screen, 
+    however this still seems to be relatively fast as the teensy is doing the work and no information is sent to the screen.
+- use updateDisplayArea for 
 
+
+Display performance seems decent in that it takes around 30ms to wite the screen black or white;
+meaning every pixel in the buffer has been changed.
+This also means every call to u8g2.sendBuffer() will take 30ms to complete assuming the buffer contains information that fills up the screen
+or modifies pixels located in the corner of the screen as the full buffer needs to be sent to modify information in the last sections of display ram
+if a small section needs to be changed quickly u8g2.updateDisplayArea() may be used, as it allows the ram to only be modified at the relevent bytes. 
+The limititaion being that the x cordinates of the area update box cannot be modified (with the 6963 display)
+this may be a limitation of the u8g2 library, but the controller datasheet does not seem to allow selection of columns for a start.
+also note that the function requires tile cordinates which are 8x8 sections of the display. Also the display has been rotated 180*
+for use in J-box. So a translation must be done to arrive at the appropriate tile cordinates for an update.
+
+also note that amount of time to write information to the display likely cannot be sped up as the controller datasheet
+requires the CE line to be off for 80ns with the data on the ports then on for another 40ns with the data still on the bus.
+this means 120ns per byte of data written to the screen, 
+if update times are affecting other actions consider implementing timed interupts in u8g2
+
+*/
 int screenx = 240;
 int screeny = 128;
 int fontx = 12;
@@ -205,15 +230,15 @@ p.y =  map(p.y,190,860,0,128);
 p.z = abs(map(p.z,900,300,0,255));
 }
 TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
-enum screens {menu,settings,gps,naughtTo60Timer};
-screens currentScreen = settings;
+//enum screens {menu,settings,gps,naughtTo60Timer};
+//screens currentScreen = settings;
 
 void initializeDisplay()
 {
     pinMode(backlightPin,OUTPUT);
     analogWrite(backlightPin,100);
     u8g2.begin();
-    //u8g2.setFlipMode(0);
+    //u8g2.setFlipMode(1); //6963 does not seem to support rotation of internal buffer
     u8g2.setContrast(255);
     u8g2.clearBuffer();
     // u8g2.setFont(u8g2_font_logisoso58_tf);
@@ -665,9 +690,15 @@ class boxGauge
     int height = screeny/5;
     int max = 12000; int cutoff = 4000; int redLine = 10000;
     bool shiftText = false;
-   
-    void displayValue(int current){ 
+
+    private: // hidden variables
+
+    public: // functions
+
+    void display(int current){ 
         // this will not clear the box as is
+     clearBox(xStart,yStart,screenx-xStart,height);
+     u8g2.drawFrame(xStart,yStart,width,height);
      int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
      if (current <= cutoff) { // this part draws and clears the filled in bars
         u8g2.drawBox(xStart,yStart,int(width*(float(current/2.0)/float(max))),height);
@@ -677,12 +708,10 @@ class boxGauge
         } 
     }
 
-    void drawBoxGauge(int current) {
+    void drawBoxGauge(int current) { // idea: numbers that exist within the boxgauge showing the current value / shift
     clearBox(xStart,yStart,screenx-xStart,height);
     u8g2.drawFrame(xStart,yStart,width,height);
-
     int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
-
     if (current <= cutoff) { // this part draws and clears the filled in bars
         u8g2.drawBox(xStart,yStart,int(width*(float(current/2.0)/float(max))),height);
     } else {
@@ -729,9 +758,82 @@ class boxGauge
     //u8g2.sendBuffer();
  }
 };
+
+class statusMessage
+{
+    public:
+    int x0 = 0; // the starting cordinates for the status message object
+    int y0 = 0;
+    uint8_t* messageFont = u8g2_font_5x7_tr;
+    uint8_t* statusFont = messageFont;
+    //enum displayItem {date,GPS_Status,loggingStatus}; // maybe best to make these functions?
+    
+    private:
+    int x1; // stores the end location of the message: makes screen formating easier!
+    int y00; // stores the top extent of the message
+    int y1 = 0; // stores the bottom extent of the message
+    int messageHeight = 0;
+    int messageWidth = 0;
+    int statusWidth = 0;
+    int statusHeight = 0;
+    int status_x0 = 0;
+    int status_y0 = 0;
+    int statusTop = 0;
+
+    public:
+    // void setFont() // the set font function will make it so when the user changes the message font the status font will also follow.
+    // {
+    //     if(Nargin)
+    // } 
+    
+    int xEnd()
+    {
+        int xEnd = status_x0 + statusWidth;
+        return(xEnd);
+    }
+    void offsetStatus(int status_xOffset,int status_yOffset)
+    {
+        status_x0 += status_xOffset;
+        status_y0 += status_yOffset;
+    }
+
+    void initialize(char * message, char * status) // performs all formatting calculations call this once
+    {
+        // draw the message
+        u8g2.setFont(messageFont);
+        int8_t messageAscent = u8g2.getAscent();
+        int8_t messageDecent = u8g2.getDescent();
+        messageWidth = u8g2.getStrWidth(message);
+        messageHeight = messageAscent - messageDecent; // the area the message can occupy
+        y1 = y0 + messageDecent; // find the absolute bottom of the message
+        y00 = y0 - messageAscent; // the upper corner of the message
+        u8g2.drawStr(x0,y0,message);// draw the message
+        
+        // draw the initial status
+        u8g2.setFont(statusFont); //switch to the status font
+        int8_t statusDecent = u8g2.getDescent();
+        int8_t statusAscent = u8g2.getAscent();
+        statusWidth = u8g2.getStrWidth(status);
+        statusHeight = statusAscent - statusDecent; // the area the message can occupy
+        statusTop = y0 - statusAscent; // the upper corner of the message
+        status_x0 = x0 + messageWidth; // start the status text at the end of the message
+        status_y0 = y0;
+        u8g2.drawStr(status_x0,status_y0,status);
+    }
+    void display(char * status)
+    {
+        clearBox(status_x0,statusTop,statusWidth,statusHeight);
+        u8g2.setFont(statusFont);
+        u8g2.drawStr(status_x0,status_y0,status);
+    }
+
+};
+
 class digitalGauge
 {
-    //todo change the use of string to the sprintf function allowing more control over the printing processs
+    //todo 
+    // consider adding extra fancy options like printing the units vertically to save space or having an indentifer precede the digits
+    // Look at removing bloat by eliminating redundant variables instead using functions to modify key variables used in the printing process
     public:
     char printFormat [10] = "%i";
     char unitText [10] = "mph";
@@ -750,17 +852,19 @@ class digitalGauge
     int xUnitOffset = 0;
     int yUnitOffset = 0;
     int totalWidth = 0;
-    int x1 = 0;
     int digitHeight = 0;
     int digit_y0 = 0;
+    int digit_y1 = 0;
     uint8_t tx = 0; // used for the clear box function this is the x cordinate of the area that changes
     uint8_t ty = 0;
     uint8_t tw = 0;
     uint8_t th = 0;
     
     public:
-    int xEnd(){
-    return(x1);
+    int xEnd()
+    {
+        int x1 = x0 + totalWidth; 
+        return(x1);
     }
     void unitLocation (int xOffset, int yOffset = 0)
     {
@@ -769,27 +873,25 @@ class digitalGauge
     }
     void findActiveArea()
     {
-        tx = x0 / 8; // find the smallest possible value for the beginning of the title block
-        tw = ceil(float(x0 + maxDigitWidth) / 8.0) - tx; // round up to find the minimum size box that needs to be updated
-        ty = (digit_y0) / 8;
+        //(NOTE x position of update area cannot be changed with 6963 controller with current library, but this is a possible limitation of the controller itself)
+        tx = x0 / 8; // find the smallest possible value for the beginning of the title block 
+        tw = ceil(float(x0 + maxDigitWidth) / 8.0) - tx; // round up to find the minimum size box that needs to be updated 
+        ty = 16 - ((digit_y0) / 8); // Because display is rotated the top of the screen is actually the bottom.
         th = ceil(float(digitHeight)/8.0);
     }
-    void updateArea()
+    void updateRowArea()
     {
         u8g2.updateDisplayArea(0,ty,30,th); // only update the area required tile cordinates are 8 pixel blocks each
     }
     void display(int val)
     {
-    clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
-    u8g2.setFont(digitFont);
-    char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
-    sprintf(digitString,printFormat,val); // generate a string with the digits in it
-    #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
-    #define digit_x0 x0+maxDigitWidth-currentWidth
-    u8g2.drawStr(digit_x0,y0,digitString);
-    //u8g2.updateDisplayArea(2,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
-    //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
-    //u8g2.sendBuffer();
+        clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
+        u8g2.setFont(digitFont);
+        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        sprintf(digitString,printFormat,val); // generate a string with the digits in it
+        #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
+        #define digit_x0 x0+maxDigitWidth-currentWidth
+        u8g2.drawStr(digit_x0,y0,digitString);
     }
 
     void initialize(int val)
@@ -801,8 +903,7 @@ class digitalGauge
         u8g2.setFont(unitFont);
         x0unit = x0 + maxDigitWidth + xUnitOffset;
         y0unit = y0 - yUnitOffset;
-        totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset;
-        x1 = x0 + totalWidth; 
+        totalWidth = maxDigitWidth + u8g2.getStrWidth(unitText) + xUnitOffset; 
         findActiveArea();
         u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
@@ -812,7 +913,6 @@ class digitalGauge
         #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
         #define digit_x0 x0+maxDigitWidth-currentWidth
         u8g2.drawStr(digit_x0,y0,digitString);
-        //u8g2.updateDisplayArea(tx,ty,tw,th); // only update the area required tile cordinates are 8 pixel blocks each
         //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
         //display(val);
     }
@@ -822,32 +922,45 @@ boxGauge tachometer;
 digitalGauge speed;
 digitalGauge xAcel;
 digitalGauge yAcel;
+digitalGauge lat;
+digitalGauge lon;
+statusMessage GPS_status;
+statusMessage loggingStatus;
+
+
 
 
 void initializeEaganM3_Screen(int myRPM = 0)
 {
     u8g2.clearBuffer();
+    GPS_status.y0 = 8;
+    GPS_status.initialize("GPS: ","Disconnected");
+    loggingStatus.y0 = 8;
+    loggingStatus.x0 = GPS_status.xEnd() + 8;
+    loggingStatus.initialize("logging: ","OFF");
     //boxGauge tachometer;
+    tachometer.yStart = 12;
     tachometer.redLine = 7500;
     tachometer.max = 8500;
     tachometer.cutoff = 2000;
-    tachometer.shiftText = true;
+    //u8g2.print("gps not functional");
     tachometer.drawBoxGauge(myRPM);
     //digitalGauge speed;
     strcpy(speed.printFormat,"%3i\0");
     speed.initialize(map(analogRead(A14),0,1023,0,156));
     //digitalGauge xAcel;
-    xAcel.maxVal = 99;
-    xAcel.x0 = speed.xEnd() + 5;
+    xAcel.maxVal = -99;
+    xAcel.x0 = speed.xEnd();
     //xAcel.y0 = 120; 
     strcpy(xAcel.unitText,"xgs\0");
+    strcpy(xAcel.printFormat,"%+2i\0");
     xAcel.unitFont = u8g2_font_t0_12_tf;
-    xAcel.unitLocation(-15,33);
+    xAcel.unitLocation(1,10);
     xAcel.initialize(99);
     //digitalGauge yAcel;
     yAcel.maxVal = -99;
     strcpy(yAcel.printFormat,"%+2i\0");
-    yAcel.x0 = xAcel.xEnd() + 15;
+    yAcel.x0 = xAcel.xEnd();
     strcpy(yAcel.unitText,"ygs\0");
     yAcel.unitFont = u8g2_font_t0_12_tf;
     yAcel.unitLocation(1,10);
@@ -862,13 +975,17 @@ void initializeEaganM3_Screen(int myRPM = 0)
 }
 void EaganM3_Screen(int myRPM = 0)
 {
+    if(GPSconnected)
+    GPS_status.display("Connected!");
+    else
+    GPS_status.display("Disconnected");
+    tachometer.display(map(analogRead(A14),0,1023,0,8500));
+    speed.display(gpsSpeed);
+    xAcel.display(xAccel);
+    yAcel.display(yAccel);
     
-    speed.display(map(analogRead(A14),0,1023,0,156));
-    xAcel.display(map(analogRead(A14),0,1023,0,99));
-    yAcel.display(map(analogRead(A14),0,1023,-99,99));
-    
-    speed.updateArea();
-    //u8g2.sendBuffer();
+    //speed.updateArea();
+    u8g2.sendBuffer();
 }
 //void initilizeBoxGauge
 // void displayGPSbootup()

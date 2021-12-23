@@ -29,10 +29,12 @@ void setup() {
   attachInterrupt(32,tachPulseEvent,CHANGE);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
+  initializeGPS();
   initializeEaganM3_Screen();
 }
 
 void loop() {
+  updateGPS();
 if(pulseUpdate > 40)
 {
   noInterrupts();
