@@ -839,13 +839,13 @@ class digitalGauge
     char unitText [10] = "mph";
     int x0 = 0;
     int y0 = screeny/2+20;
-    int maxVal = 199;
+    float maxVal = 199;
 
     uint8_t* digitFont = u8g2_font_logisoso30_tr;
     uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
     
     private:
-    int lastVal = 0;
+    float lastVal = 0;
     int maxDigitWidth = 0;
     int x0unit = 0;
     int y0unit = 0;
@@ -893,11 +893,13 @@ class digitalGauge
     {
         u8g2.updateDisplayArea(0,ty,30,th); // only update the area required tile cordinates are 8 pixel blocks each
     }
-    void display(int val)
+    void display(float val)
     {
         if(lastVal == val)
-        return; // don't do anything if no updates need to be made to save time
-        lastVal = val; // save the latest value;
+        {
+            return; // don't do anything if no updates need to be made to save time
+        }
+        lastVal = val; // otherwise save the latest value;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
         char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
@@ -907,10 +909,12 @@ class digitalGauge
         u8g2.drawStr(digit_x0,y0,digitString);
     }
 
-    void initialize(int val)
+    void initialize(float val)
     {
         u8g2.setFont(digitFont);
-        maxDigitWidth = u8g2.getStrWidth(String(maxVal).c_str());
+        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        sprintf(digitString,printFormat,maxVal); // generate a string with the digits in it
+        maxDigitWidth = u8g2.getStrWidth(digitString);
         digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
         digit_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
         u8g2.setFont(unitFont);
@@ -918,15 +922,8 @@ class digitalGauge
         y0unit = y0 - yUnitOffset; 
         findActiveArea();
         u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
-        clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
-        u8g2.setFont(digitFont);
-        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
-        sprintf(digitString,printFormat,val); // generate a string with the digits in it
-        #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
-        #define digit_x0 x0+maxDigitWidth-currentWidth
-        u8g2.drawStr(digit_x0,y0,digitString);
         //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
-        //display(val);
+        display(val);
     }
 };
 
