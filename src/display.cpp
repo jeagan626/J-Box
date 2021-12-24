@@ -835,7 +835,7 @@ class digitalGauge
     // consider adding extra fancy options like printing the units vertically to save space or having an indentifer precede the digits
     // Look at removing bloat by eliminating redundant variables instead using functions to modify key variables used in the printing process
     public:
-    char printFormat [10] = "%i";
+    char printFormat [10] = "%1i";
     char unitText [10] = "mph";
     int x0 = 0;
     int y0 = screeny/2+20;
@@ -956,7 +956,7 @@ void initializeEaganM3_Screen(int myRPM = 0)
     tachometer.drawBoxGauge(myRPM);
     //digitalGauge speed;
     strcpy(speed.printFormat,"%3i\0");
-    speed.initialize(map(analogRead(A14),0,1023,0,156));
+    speed.initialize(0);
     //digitalGauge xAcel;
     xAcel.maxVal = -99;
     xAcel.x0 = speed.xEnd();
@@ -997,8 +997,8 @@ void EaganM3_Screen(int myRPM = 0)
     GPS_status.display("Connected!");
     else
     GPS_status.display("Disconnected");
-    tachometer.display(map(analogRead(A14),0,1023,0,8500));
-    speed.display(int(gpsSpeed));
+    tachometer.display(myRPM);
+    speed.display(floor(gpsSpeed));
     xAcel.display(xAccel);
     yAcel.display(yAccel);
     lat.display(latitude);

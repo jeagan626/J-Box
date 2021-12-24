@@ -2,6 +2,7 @@
 #include "gps.h"
 #include <U8g2lib.h> 
 volatile int tachPulse = 0;
+volatile int pulseCount = 0;
 int tachCount = 0;
 int pulseInterval = 100;
 int tachFreq = 0;
@@ -13,7 +14,13 @@ void tachPulseEvent()
 {
   tachPulse++;
 }
-
+void pulseTally()
+{
+  noInterrupts();
+  pulseCount = tachPulse;
+  tachPulse = 0;
+  interrupts();
+}
 
 void setup() {
   // digitalWrite(LED_BUILTIN, HIGH);
@@ -27,39 +34,35 @@ void setup() {
   Serial.println("test");
   pinMode(32,INPUT);
   attachInterrupt(32,tachPulseEvent,CHANGE);
+  checkPulses.begin(pulseTally,50000);
+  //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
   initializeGPS();
   initializeEaganM3_Screen();
+  //gpsSpeed = 0;
 }
 
 void loop() {
   updateGPS();
-if(pulseUpdate > 40)
-{
-  noInterrupts();
-  tachCount = tachPulse;
-  pulseInterval = pulseUpdate;
-  tachPulse = 0;
-  pulseUpdate = 0;
-  interrupts();
-  int newtachFreq = (tachCount * 500) / pulseInterval; // measure the frequency of the tach wire (change interupt means two counts per pulse)
+  int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
    if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
-   tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
-   }else{ // use the new frequency
-  tachFreq = newtachFreq;
-  }
-  //tachFreq = tachCount * (1000.0 / pulseUpdate);
-  Serial.print(tachCount);
+    tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
+   }
+   else
+   { // use the new frequency
+    tachFreq = newtachFreq;
+   }
+  Serial.print(pulseCount);
   Serial.print("  ");
-  Serial.print(pulseInterval);
-  Serial.print("  ");
+  // Serial.print(pulseInterval);
+  // Serial.print("  ");
   Serial.println(tachFreq);
   tachRpm = tachFreq * 20;
-}
-displayUpdateTime = 0;
+
 EaganM3_Screen(tachRpm);
-Serial.println(displayUpdateTime);
+Serial.println(floor(gpsSpeed));
+displayUpdateTime = 0;
 
 //BakerFSAEscreen();
 
