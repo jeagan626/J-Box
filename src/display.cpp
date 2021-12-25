@@ -245,7 +245,7 @@ void initializeDisplay()
     // u8g2.setFont(u8g2_font_logisoso58_tf);
     // u8g2.drawStr(25,80,"J-Box");
     u8g2.drawXBM( 80, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
-    u8g2.drawXBM( 0, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
+    //u8g2.drawXBM( 0, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
     u8g2.setFont(u8g2_font_courR10_tr);
     u8g2.setFontPosBaseline(); // Set the font position to the bottom
     // u8g2.drawStr(160,10,"J-Box");
@@ -1005,8 +1005,8 @@ void EaganM3_Screen(int myRPM = 0)
     GPS_status.display("Disconnected");
     tachometer.display(myRPM);
     speed.display(gpsSpeed);
-    xAcel.display(xAccel);
-    yAcel.display(yAccel);
+    xAcel.display(xAccel/10);
+    yAcel.display(yAccel/10);
     lat.display(latitude);
     lon.display(longitude);
     
