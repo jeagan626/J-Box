@@ -53,15 +53,15 @@ void loop() {
    { // use the new frequency
     tachFreq = newtachFreq;
    }
-  Serial.print(pulseCount);
-  Serial.print("  ");
+  //Serial.print(pulseCount);
+  //Serial.print("  ");
   // Serial.print(pulseInterval);
   // Serial.print("  ");
-  Serial.println(tachFreq);
+  //Serial.println(tachFreq);
   tachRpm = tachFreq * 20;
 
 EaganM3_Screen(tachRpm);
-Serial.println(floor(gpsSpeed));
+Serial.println(displayUpdateTime);
 displayUpdateTime = 0;
 
 //BakerFSAEscreen();

@@ -218,6 +218,7 @@ double battVoltage = 11.5;
 String gears[6] = {"N","1","2","3","4","5"}; // this could probably be done with just a char [] (with less resources)
 int gIndex = 0;
 int gearDir = 1;
+bool updateRequest = true; // use this as a flag to see if the screen needs to be updated
 
 
 
@@ -692,11 +693,14 @@ class boxGauge
     bool shiftText = false;
 
     private: // hidden variables
-
+    int lastValue = 0; // use this to save the last value
     public: // functions
 
     void display(int current){ 
-        // this will not clear the box as is
+    if(current == lastValue) // if there is no change in the reading
+        return; // dont do anything to save time
+    lastValue = current;
+    updateRequest = true;
      clearBox(xStart,yStart,screenx-xStart,height);
      u8g2.drawFrame(xStart,yStart,width,height);
      int cutoffWidth = int(width*(float(cutoff/2.0)/float(max)));
@@ -835,7 +839,7 @@ class digitalGauge
     // consider adding extra fancy options like printing the units vertically to save space or having an indentifer precede the digits
     // Look at removing bloat by eliminating redundant variables instead using functions to modify key variables used in the printing process
     public:
-    char printFormat [10] = "%1i";
+    char printFormat [10] = "%1.0f";
     char unitText [10] = "mph";
     int x0 = 0;
     int y0 = screeny/2+20;
@@ -900,6 +904,7 @@ class digitalGauge
             return; // don't do anything if no updates need to be made to save time
         }
         lastVal = val; // otherwise save the latest value;
+        updateRequest = true;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
         char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
@@ -955,20 +960,20 @@ void initializeEaganM3_Screen(int myRPM = 0)
     //u8g2.print("gps not functional");
     tachometer.drawBoxGauge(myRPM);
     //digitalGauge speed;
-    strcpy(speed.printFormat,"%3i\0");
-    speed.initialize(0);
+    strcpy(speed.printFormat,"%3.0f\0");
+    speed.initialize(88);
     //digitalGauge xAcel;
-    xAcel.maxVal = -99;
+    xAcel.maxVal = -99.0;
     xAcel.x0 = speed.xEnd();
     //xAcel.y0 = 120; 
     strcpy(xAcel.unitText,"xgs\0");
-    strcpy(xAcel.printFormat,"%+2i\0");
+    strcpy(xAcel.printFormat,"%+2.0f\0");
     xAcel.unitFont = u8g2_font_t0_12_tf;
     xAcel.unitLocation(1,10);
     xAcel.initialize(99);
     //digitalGauge yAcel;
     yAcel.maxVal = -99;
-    strcpy(yAcel.printFormat,"%+2i\0");
+    strcpy(yAcel.printFormat,"%+2.0f\0");
     yAcel.x0 = xAcel.xEnd();
     strcpy(yAcel.unitText,"ygs\0");
     yAcel.unitFont = u8g2_font_t0_12_tf;
@@ -993,18 +998,20 @@ void initializeEaganM3_Screen(int myRPM = 0)
 }
 void EaganM3_Screen(int myRPM = 0)
 {
+    updateRequest = false;
     if(GPSconnected)
     GPS_status.display("Connected!");
     else
     GPS_status.display("Disconnected");
     tachometer.display(myRPM);
-    speed.display(floor(gpsSpeed));
+    speed.display(gpsSpeed);
     xAcel.display(xAccel);
     yAcel.display(yAccel);
     lat.display(latitude);
     lon.display(longitude);
     
     //speed.updateArea();
+    if(updateRequest)
     u8g2.sendBuffer();
 }
 //void initilizeBoxGauge
