@@ -1,52 +1,71 @@
-#include <Arduino.h>
-#include <U8g2lib.h>
-#include "TouchScreen.h"
-#include <Wire.h> //Needed for I2C to GPS
-#include "SparkFun_u-blox_GNSS_Arduino_Library.h" //http://librarymanager/All#SparkFun_u-blox_GNSS
-
-SFE_UBLOX_GNSS myGNSS;
-U8G2_T6963_240X128_F_8080 u8g2(U8G2_R2, 2, 14, 7, 8, 6, 20, 21, 5, /*enable/wr=*/ 27 , /*cs/ce=*/ 26, /*dc=*/ 25, /*reset=*/24); // Connect RD (orange) with +5V, FS0 and FS1 with GND
-
-
-#define YP A16  // must be an analog pin, use "An" notation!
-#define XM A17  // must be an analog pin, use "An" notation!
-#define YM A14  // can be a digital pin
-#define XP A15   // can be a digital pin
-#define MINPRESSURE 10
-#define MAXPRESSURE 1000
-TSPoint p;
-void modifyPointToScreen()
+#include "display.h"
+#include "gps.h"
+#include <U8g2lib.h> 
+volatile int tachPulse = 0;
+volatile int pulseCount = 0;
+int tachCount = 0;
+int pulseInterval = 100;
+int tachFreq = 0;
+int tachRpm = 0;
+elapsedMillis pulseUpdate;
+elapsedMillis displayUpdateTime;
+IntervalTimer checkPulses;
+void tachPulseEvent()
 {
-p.x =  map(p.x,100,944,0,240);
-p.y =  map(p.y,190,860,0,128);
-p.z = abs(map(p.z,900,300,0,255));
+  tachPulse++;
 }
-TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
-enum screens {menu,setupScreen,gps,naughtTo60Timer};
-screens currentScreen = setupScreen;
-void menuScreen();
-void setupScreen();
-void gpsScreen();
-void naughtTo60Screen();
-
-
+void pulseTally()
+{
+  noInterrupts();
+  pulseCount = tachPulse;
+  tachPulse = 0;
+  interrupts();
+}
 
 void setup() {
-  // put your setup code here, to run once:
-u8g2.begin();
-  //u8g2.setFlipMode(0);
-  u8g2.setContrast(255);
-  Wire.begin();
-  Wire.setClock(40000);
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB14_tr);
-  u8g2.drawStr(32,20,"Booting Up");
-  u8g2.sendBuffer();
-
-
+  // digitalWrite(LED_BUILTIN, HIGH);
+  // delay(100);
+  // digitalWrite(LED_BUILTIN, LOW);
+  // delay(100);
+  // drawBoxGauge(8000,12000,cutoff);
+  // circularGaugeLayout();
+  initializeDisplay();
+  Serial.begin(9600);
+  Serial.println("test");
+  pinMode(32,INPUT);
+  attachInterrupt(32,tachPulseEvent,CHANGE);
+  checkPulses.begin(pulseTally,50000);
+  //checkPulses.priority(40);
+  // Serial.println(modf(10.51234512,1.0);
+  pinMode(LED_BUILTIN,OUTPUT);
+  initializeGPS();
+  initializeEaganM3_Screen();
+  //gpsSpeed = 0;
 }
 
 void loop() {
+  updateGPS();
+  int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
+   if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
+    tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
+   }
+   else
+   { // use the new frequency
+    tachFreq = newtachFreq;
+   }
+  //Serial.print(pulseCount);
+  //Serial.print("  ");
+  // Serial.print(pulseInterval);
+  // Serial.print("  ");
+  //Serial.println(tachFreq);
+  tachRpm = tachFreq * 20;
+
+EaganM3_Screen(tachRpm);
+Serial.println(displayUpdateTime);
+displayUpdateTime = 0;
+
+//BakerFSAEscreen();
+
   // put your main code here, to run repeatedly:
   // toDo have simple setup screen function to walk user through setup options
   // fetch data from diffrent sources and display it to the user on screens
