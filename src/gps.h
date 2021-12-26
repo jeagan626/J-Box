@@ -2,6 +2,7 @@
 #define GPS_H
 #include "SparkFun_u-blox_GNSS_Arduino_Library.h" //http://librarymanager/All#SparkFun_u-blox_GNSS
 #include <Wire.h> //Needed for I2C to GPS
+#include <TimeLib.h>
 int initializeGPS();
 void updateGPS();
 extern float latitude;
@@ -21,6 +22,6 @@ extern bool usingAutoHNRDyn;
 extern bool usingAutoHNRAtt;
 extern bool GPSconnected;
 extern bool performanceState;
-extern bool newUpdate;
+extern bool newGPSUpdate;
 
 #endif //GPS_H

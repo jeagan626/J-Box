@@ -18,13 +18,13 @@ bool usingAutoHNRDyn = false;
 bool usingAutoHNRAtt = false;
 bool GPSconnected = false;
 bool performanceState = false;
-bool newUpdate = false;
+bool newGPSUpdate = false;
 
 void getHNRINSdata(UBX_HNR_INS_data_t ubxDataStruct)
 {
   xAccel = ubxDataStruct.xAccel;
   yAccel = ubxDataStruct.yAccel;
-  newUpdate = true;
+  newGPSUpdate = true;
 }
 
 void getHNRPVTdata(UBX_HNR_PVT_data_t ubxDataStruct)
@@ -33,7 +33,7 @@ void getHNRPVTdata(UBX_HNR_PVT_data_t ubxDataStruct)
   longitude = ubxDataStruct.lon / 10000000.0;
   gpsSpeed = ubxDataStruct.gSpeed * (2.23694 / 1000);
   gpsUpdateEvent++;
-  newUpdate = true;
+  newGPSUpdate = true;
 }
 
 int initializeGPS()
@@ -63,10 +63,25 @@ int initializeGPS()
     return(error); // return the correct error message based on the number of succesfully completed tasks
     // note this may not give accurate error messages;
     // error messages are encoded in binary
+    
 }
 
 void updateGPS()
 {
+  newGPSUpdate = false;
   myGNSS.checkUblox(); // Check for the arrival of new data and process it.
   myGNSS.checkCallbacks(); // Check if any callbacks are waiting to be processed.
+}
+
+void GPStimeSync()
+{
+  if (GPSconnected)
+  {
+    if(myGNSS.getTimeValid()) // if we have a valid time from the GPS module lets set the teensy RTC
+      {
+        setTime(myGNSS.getHour(),myGNSS.getMinute(),myGNSS.getSecond(),myGNSS.getDay(),myGNSS.getMonth(),myGNSS.getYear());
+        // use the GPS module to set the teensy time
+        // note more coding should be done to adjust the time for daylight savings, and time zones
+      }
+  }
 }

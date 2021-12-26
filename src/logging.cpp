@@ -1,7 +1,13 @@
 #include "logging.h"
+#include "gps.h"
 char logFile[13] = "Log"; //Start each logfile with "Log"
 char dir[64] = "/Datalogs/"; //Store the log files in a folder called "datalogs"
 char logFileDir[77] = " "; // allocate a string to lead to the datalog file we will create
+#define SD_FAT_TYPE 3
+const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
+#define SD_CONFIG SdioConfig(FIFO_SDIO)
+SdFs SD;
+FsFile dataFile;
 elapsedMillis milliseconds;
 unsigned int lastSeconds = 0;
 time_t getTeensy3Time()
@@ -31,23 +37,29 @@ void updateMillisecond() // this might not be a good idea since the loop speed m
   } 
 }
 
-String constructDateTime(uint8_t i)
+
+String constructDateTime(uint8_t i) //hi
 {
-  char dateTimeString[16] = "";
+  //hi
+  char dateTimeString[20] = "";
   switch (i)
   {
-  case 0:
-     sprintf(dateTimeString,"%02i.%i",month(),day());
-    break;
+    case 0:
+      sprintf(dateTimeString,"%02i-%i-%.02i",month(),day(),year()%1000);
+      break;
 
-  case 1:
-    sprintf(dateTimeString,"%02i'%02i",hour(),minute());
-    break;
-  } 
+    case 1:
+      sprintf(dateTimeString,"%02i'%02i",hour(),minute());
+      break;
+    
+    case 2:
+      sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i",month(),day(),year()%1000,hour(),minute(),second());
+      break;
+  }
   return dateTimeString;
 }
 
-  void initilizeSD(){
+void initializeSD(){
       SD.begin(SD_CONFIG);
       strcat(dir,constructDateTime(0).c_str()); //add the current date to the dir to make a dated folder within "datalogs"
       SD.mkdir(dir); // create the dated folder

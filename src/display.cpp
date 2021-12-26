@@ -1,7 +1,6 @@
 #include "display.h"
 #include "gps.h"
-#include <string>
-#include <math.h>
+#include "logging.h"
 /* Notes about display performance as of 12/20/21
 TLDR: 
 -Avoid calling sendBuffer() as much as possible, aim to do it only once per update cycle and outside of functions or classes
@@ -196,7 +195,7 @@ static unsigned char ScRacing_bits[] = {
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
-
+unsigned long lastDisplayUpdate = 0;
 unsigned long lastMphUpdate;
 unsigned long lastRpmUpdate;
 unsigned long lastCTempUpdate;
@@ -795,13 +794,13 @@ class statusMessage
         int xEnd = status_x0 + statusWidth;
         return(xEnd);
     }
-    void offsetStatus(int status_xOffset,int status_yOffset)
+    void offsetStatus(int status_xOffset,int status_yOffset = 0)
     {
         status_x0 += status_xOffset;
         status_y0 += status_yOffset;
     }
 
-    void initialize(char * message, char * status) // performs all formatting calculations call this once
+    void initialize(const char * message, const char * status) // performs all formatting calculations call this once
     {
         // draw the message
         u8g2.setFont(messageFont);
@@ -820,16 +819,29 @@ class statusMessage
         statusWidth = u8g2.getStrWidth(status);
         statusHeight = statusAscent - statusDecent; // the area the message can occupy
         statusTop = y0 - statusAscent; // the upper corner of the message
-        status_x0 = x0 + messageWidth; // start the status text at the end of the message
-        status_y0 = y0;
+        status_x0 += x0 + messageWidth; // start the status text at the end of the message
+        status_y0 += y0;
         u8g2.drawStr(status_x0,status_y0,status);
     }
-    void display(char * status)
+    void display(const char * status)
     {
         clearBox(status_x0,statusTop,statusWidth,statusHeight);
         u8g2.setFont(statusFont);
         u8g2.drawStr(status_x0,status_y0,status);
     }
+    void displayGPS_status()
+    {
+        if(GPSconnected)
+        display("Connected!");
+        else
+        display("Disconnected");
+    }
+    void displayDate()
+    {
+        //char dateTimeString [20] = constructDateTime(2).c_str();
+        display(constructDateTime(2).c_str());
+    }
+
 
 };
 
@@ -940,6 +952,7 @@ digitalGauge lat;
 digitalGauge lon;
 statusMessage GPS_status;
 statusMessage loggingStatus;
+statusMessage date;
 
 
 
@@ -951,7 +964,11 @@ void initializeEaganM3_Screen(int myRPM = 0)
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatus.y0 = 8;
     loggingStatus.x0 = GPS_status.xEnd() + 8;
-    loggingStatus.initialize("logging: ","OFF");
+    loggingStatus.offsetStatus(4);
+    loggingStatus.initialize("logging:","OFF");
+    date.y0 = 8;
+    date.x0 = loggingStatus.xEnd() + 5;
+    date.initialize("",constructDateTime(2).c_str());
     //boxGauge tachometer;
     tachometer.yStart = 12;
     tachometer.redLine = 7500;
@@ -999,20 +1016,21 @@ void initializeEaganM3_Screen(int myRPM = 0)
 void EaganM3_Screen(int myRPM = 0)
 {
     updateRequest = false;
-    if(GPSconnected)
-    GPS_status.display("Connected!");
-    else
-    GPS_status.display("Disconnected");
+    GPS_status.displayGPS_status();
+    date.displayDate();
     tachometer.display(myRPM);
     speed.display(gpsSpeed);
-    xAcel.display(xAccel/10);
+    xAcel.display(xAccel/10); // display acceleration in 10ths of a G
     yAcel.display(yAccel/10);
     lat.display(latitude);
     lon.display(longitude);
     
     //speed.updateArea();
-    if(updateRequest)
+    if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
+    {
     u8g2.sendBuffer();
+    lastDisplayUpdate = millis();
+    }
 }
 //void initilizeBoxGauge
 // void displayGPSbootup()

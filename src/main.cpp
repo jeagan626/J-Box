@@ -1,5 +1,6 @@
 #include "display.h"
 #include "gps.h"
+#include "logging.h"
 #include <U8g2lib.h> 
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
@@ -30,6 +31,7 @@ void setup() {
   // drawBoxGauge(8000,12000,cutoff);
   // circularGaugeLayout();
   initializeDisplay();
+  setSyncProvider(getTeensy3Time);
   Serial.begin(9600);
   Serial.println("test");
   pinMode(32,INPUT);
@@ -39,6 +41,7 @@ void setup() {
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
   initializeGPS();
+  initializeSD();
   initializeEaganM3_Screen();
   //gpsSpeed = 0;
 }
