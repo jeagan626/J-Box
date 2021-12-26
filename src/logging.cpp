@@ -69,7 +69,6 @@ void initializeSD(){
       strcat(logFileDir,"/");//add the / so we can locate our file within the current directory
       strcat(logFileDir,logFile); // add the log file name to the directory so we can create the file
       dataFile.open(logFileDir, FILE_WRITE);
-      dataFile.print("\n\n\n----------------\nBegin New Entry:\n");
       dataFile.print(year());
       dataFile.print('/');
       dataFile.print(month());
@@ -81,6 +80,6 @@ void initializeSD(){
       dataFile.print(minute());
       dataFile.print(':');
       dataFile.println(second());
-      dataFile.print("\n\n\n");
+      dataFile.print("\n");
       dataFile.close();
   }
