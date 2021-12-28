@@ -243,10 +243,10 @@ class touchEvent
     public:
     int x = 0;
     int y = 0;
-    uint8_t minimumDuration = 15;
-    uint8_t staleDuration = 30;
+    uint8_t minimumDuration = 30;
+    uint8_t staleDuration = 20; // rework this method of debouncing or de
     int duration = 0;
-    int minPressure = 40;
+    int minPressure = 10;
     int maxPressure = 255;
 
     private:
@@ -259,12 +259,12 @@ class touchEvent
     void detect() // the detect touch function serves to identify if the screen has been touched, if it meets the minimum duration
     {
         p = ts.getPoint();
-        modifyPointToScreen();
-        Serial.print(p.x);
-        Serial.print(",");
-        Serial.print(p.y);
-        Serial.print(",");
-        Serial.println(p.z);
+        modifyPointToScreen(); // maybe avoid use of MAP function for this process intensive
+        // Serial.print(p.x);
+        // Serial.print(",");
+        // Serial.print(p.y);
+        // Serial.print(",");
+        // Serial.println(p.z);
         if (p.z > minPressure && p.z < maxPressure) // if the pressure meets our criteria
         {
             if(isScreenPressed == false) // if the screen was previously not pressed
@@ -275,10 +275,11 @@ class touchEvent
             x = p.x;
             y = p.y;
             
-            // Serial.print(",");
-            // Serial.print(y);
-            // Serial.print(",");
-            // Serial.print(touchDuration);
+            Serial.print(x);
+            Serial.print(",");
+            Serial.print(y);
+            Serial.print(",");
+            Serial.println(touchDuration);
         }
         else
         {
@@ -296,8 +297,9 @@ class touchEvent
     {
         return(isScreenPressed);
     }
-    bool isPressValid()
+    bool isTapped()
     {
+        
         return( (touchEventDuration > minimumDuration) && (lastEvent < staleDuration) && (isScreenPressed == false)  );
         // all of these conditions must be true for a valid touch press
     }
@@ -957,6 +959,14 @@ class statusMessage
         else
         display("Disconnected");
     }
+
+    void displayLog_status()
+    {
+        if(loggingActive)
+        display("ON");
+        else
+        display("OFF");
+    }
     void displayDate()
     {
         //char dateTimeString [20] = constructDateTime(2).c_str();
@@ -1077,11 +1087,14 @@ class button
 
     private:
     bool isActive = false;
+    bool actionAssigned = false; // use this to avoid performing actions that wernt asigned.
     int text_y0 = 0; // top of the text message
     int box_y0 = 0;
     int box_y1 = 0;
     int box_x0 = 0;
     int box_x1 = 0;
+    
+    void (*actionFunction)(); // use this to point to the function we want called when the button is pressed
 
     // possible additions might be to shade the button if it is being pressed
 
@@ -1117,6 +1130,11 @@ class button
         // assign an action function to the button
 
     }
+    void assignAction(void (*myFunction)())
+    {
+        actionFunction = myFunction;
+        actionAssigned = true;
+    }
     void draw()
     {
         clearBox(box_x0,box_y0,box_x1 - box_x0,box_y1 - box_y0);
@@ -1139,14 +1157,20 @@ class button
     
     void read() // maybe call this read
     {
-        if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1) && tap.isPressed()) {
+        if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
         // check to see if the tap is inside the button box
-            fillButton();
-            updateRequest = true;
-            if(tap.isPressValid()){
+            if(tap.isPressed()){ // if the user is pressing the button
+                fillButton();
+                //Serial.println("pressed");
+                updateRequest = true;
+            }
+            if(tap.isTapped()){ // if the user tapped the button
                 Serial.println("we got it!");
-                
-                
+                draw();
+                updateRequest = true;
+                if(actionAssigned){ // make sure there is an action assigned before runing anything
+                    actionFunction(); // Run the function that we previously associated with the button
+                }
             }
         }
         else{
@@ -1169,7 +1193,10 @@ statusMessage date;
 button logButton;
 button menuButton;
 
-
+void changeLogging_state()
+{
+    loggingActive = !loggingActive;
+}
 
 
 void initializeEaganM3_Screen(int myRPM = 0)
@@ -1230,6 +1257,7 @@ void initializeEaganM3_Screen(int myRPM = 0)
     logButton.y0 = 120;
     logButton.setText("LOG");
     logButton.initalize();
+    logButton.assignAction(&changeLogging_state);
     menuButton.x0 = 20;
     menuButton.y0 = 120;
     menuButton.setText("MENU");
@@ -1243,6 +1271,7 @@ void EaganM3_Screen(int myRPM = 0)
     logButton.read();
     menuButton.read();
     GPS_status.displayGPS_status();
+    loggingStatus.displayLog_status();
     date.displayDate();
     tachometer.display(myRPM);
     speed.display(gpsSpeed);

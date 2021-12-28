@@ -4,7 +4,7 @@
 // this way if some files are not called or included in a particular build there arent any interdependancies
 // since these values could be derived many ways
 extern int engRPM;
-
+extern bool loggingActive;
 
 
 #endif

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include "TouchScreen.h"
+#include "globalData.h"
 #include <string>
 #include <math.h>
 void menuScreen();

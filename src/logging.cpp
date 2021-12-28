@@ -4,6 +4,7 @@
 char logFile[13] = "Log"; //Start each logfile with "Log"
 char dir[64] = "/Datalogs/"; //Store the log files in a folder called "datalogs"
 char logFileDir[77] = " "; // allocate a string to lead to the datalog file we will create
+bool newLog = true;
 #define SD_FAT_TYPE 3
 const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
@@ -88,7 +89,7 @@ String constructDateTime(uint8_t i)
       break;
 
     case 4:
-      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.2i",hour(),minute(),second(),rtc_ms() / 10);
+      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),rtc_ms());
       break;
 
     case 5:
@@ -103,6 +104,7 @@ void initializeSD(){
       strcat(dir,constructDateTime(0).c_str()); //add the current date MM-YYYY to the dir to make a dated folder within "datalogs"
       SD.mkdir(dir); // create the dated directory
   }
+
 void makeLog()
 {
   strcat(logFile,constructDateTime(1).c_str()); // add the current time to the file name
@@ -118,20 +120,32 @@ void makeLog()
 }
 void logData()
 {
-  dataFile.open(logFileDir, FILE_WRITE);
-  dataFile.print(constructDateTime(4).c_str());
-  dataFile.print(',');
-  dataFile.print(latitude);
-  dataFile.print(',');
-  dataFile.print(longitude);
-  dataFile.print(',');
-  dataFile.print(engRPM);
-  dataFile.print(',');
-  dataFile.print(gpsSpeed);
-  dataFile.print(',');
-  dataFile.print(xAccel);
-  dataFile.print(',');
-  dataFile.print(yAccel);
-  dataFile.print('\n');
-  dataFile.close();
+  if(loggingActive) // if logging is on now
+  {
+    if(newLog) // check if this is a new log
+    {
+      makeLog(); // make a new log
+      newLog = false; // the log has been made
+    }
+    dataFile.open(logFileDir, FILE_WRITE);
+    dataFile.print(constructDateTime(4).c_str());
+    dataFile.print(',');
+    dataFile.print(latitude);
+    dataFile.print(',');
+    dataFile.print(longitude);
+    dataFile.print(',');
+    dataFile.print(engRPM);
+    dataFile.print(',');
+    dataFile.print(gpsSpeed);
+    dataFile.print(',');
+    dataFile.print(xAccel);
+    dataFile.print(',');
+    dataFile.print(yAccel);
+    dataFile.print('\n');
+    dataFile.close();
+  }
+  else
+  {
+    newLog = true; // start a new log next time
+  }
 }

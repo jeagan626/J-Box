@@ -11,6 +11,7 @@ int tachFreq = 0;
 int tachRpm = 0;
 elapsedMillis pulseUpdate;
 elapsedMillis displayUpdateTime;
+elapsedMillis lastLogEntry;
 IntervalTimer checkPulses;
 void tachPulseEvent()
 {
@@ -48,7 +49,13 @@ void setup() {
 }
 
 void loop() {
+  if(lastLogEntry > 50)
+  {
+    logData();
+    lastLogEntry = 0;
+  }
   updateGPS();
+
   int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
    if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
     tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter

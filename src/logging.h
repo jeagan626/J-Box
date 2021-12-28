@@ -8,6 +8,7 @@ time_t getTeensy3Time();
 //void updateMillisecond();
 String constructDateTime(uint8_t i);
 void initializeSD();
+void logData();
 //void FilePrintTime(FsFile dataFile, char fullTime);
 
 #endif
