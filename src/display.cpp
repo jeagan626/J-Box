@@ -275,11 +275,11 @@ class touchEvent
             x = p.x;
             y = p.y;
             
-            Serial.print(x);
-            Serial.print(",");
-            Serial.print(y);
-            Serial.print(",");
-            Serial.println(touchDuration);
+            // Serial.print(x);
+            // Serial.print(",");
+            // Serial.print(y);
+            // Serial.print(",");
+            // Serial.println(touchDuration);
         }
         else
         {
@@ -892,7 +892,7 @@ class statusMessage
     int y0 = 0;
     uint8_t* messageFont = u8g2_font_5x7_tr;
     uint8_t* statusFont = messageFont;
-    //enum displayItem {date,GPS_Status,loggingStatus}; // maybe best to make these functions?
+    //enum displayItem {date,GPS_Status,loggingStatusMessage}; // maybe best to make these functions?
     
     private:
     int x1; // stores the end location of the message: makes screen formating easier!
@@ -962,10 +962,27 @@ class statusMessage
 
     void displayLog_status()
     {
-        if(loggingActive)
-        display("ON");
-        else
-        display("OFF");
+        switch (loggingStatus)
+        {
+        case loggingOff:
+            display("OFF");
+            break;
+        
+        case logRunning:
+            display("ON");
+            break;
+
+        case sdError:
+            display("sdErr");
+            break;
+
+        default:
+            break;
+        }
+        // if(loggingActive)
+        // display("ON");
+        // else
+        // display("OFF");
     }
     void displayDate()
     {
@@ -1188,7 +1205,7 @@ digitalGauge yAcel;
 digitalGauge lat;
 digitalGauge lon;
 statusMessage GPS_status;
-statusMessage loggingStatus;
+statusMessage loggingStatusMessage;
 statusMessage date;
 button logButton;
 button menuButton;
@@ -1204,12 +1221,12 @@ void initializeEaganM3_Screen(int myRPM = 0)
     u8g2.clearBuffer();
     GPS_status.y0 = 8;
     GPS_status.initialize("GPS: ","Disconnected");
-    loggingStatus.y0 = 8;
-    loggingStatus.x0 = GPS_status.xEnd() + 8;
-    loggingStatus.offsetStatus(2);
-    loggingStatus.initialize("LOG:","OFF");
+    loggingStatusMessage.y0 = 8;
+    loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+    loggingStatusMessage.offsetStatus(2);
+    loggingStatusMessage.initialize("LOG:","sdErr");
     date.y0 = 8;
-    date.x0 = loggingStatus.xEnd() + 5;
+    date.x0 = loggingStatusMessage.xEnd() + 5;
     date.initialize("",constructDateTime(3).c_str());
     //boxGauge tachometer;
     tachometer.yStart = 12;
@@ -1272,7 +1289,7 @@ void EaganM3_Screen(int myRPM = 0)
     menuButton.read();
     tachometer.display(engRPM);
     GPS_status.displayGPS_status();
-    loggingStatus.displayLog_status();
+    loggingStatusMessage.displayLog_status();
     date.displayDate();
     speed.display(gpsSpeed);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G

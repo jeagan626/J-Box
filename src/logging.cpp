@@ -77,7 +77,7 @@ String constructDateTime(uint8_t i)
       break;
 
     case 1:
-      sprintf(dateTimeString,"%02i'%02i",hour(),minute());
+      sprintf(dateTimeString,"%02i;%02i",hour(),minute());
       break;
     
     case 2:
@@ -99,29 +99,49 @@ String constructDateTime(uint8_t i)
   return dateTimeString;
 }
 
-void initializeSD(){
-      SD.begin(SD_CONFIG);
-      //strcpy(dir,"/Datalogs/\0"); // start the directory back at datlogs to avoid funky directories
+void initializeSD(){ 
+      if(!SD.begin(SD_CONFIG)){
+        loggingStatus = sdError; // if theres an error initializing the SD card
+        return;
+      }
+      strcpy(dir,"/Datalogs/"); // start the directory back at datlogs to avoid funky directories
+      strcpy(logFile,"Log"); // reset the logfile name
+      Serial.println(dir);
       strcat(dir,constructDateTime(0).c_str()); //add the current date MM-YYYY to the dir to make a dated folder within "datalogs"
-      //strcat(dir,'\0'); // add the null to terminate the string
-      SD.mkdir(dir); // create the dated directory
-      //strcpy(logFile,"log\0"); // reset the logfile name
-      //strcpy(logFileDir,'\0'); // reset the logfiledir name
+      Serial.println(dir);
+      if(!SD.mkdir(dir)){ // create the dated directory
+        loggingStatus = dirError;
+        return;
+      } 
+      
 }
 
-void makeLog()
+bool initializeLog()
 {
   initializeSD(); // do this just for good measure
+  if(loggingStatus == sdError){ // if theres an error
+    return(false);
+  }
   strcat(logFile,constructDateTime(1).c_str()); // add the current time to the file name
+  Serial.println(logFile);
   strcat(logFile,".csv");// tack on the .txt so we can open it later
+  Serial.println(logFile);
   strcpy(logFileDir,dir);//add the current directory to the log file directory string
+  Serial.println(logFileDir);
   strcat(logFileDir,"/");//add the / so we can locate our file within the current directory
+  Serial.println(logFileDir);
   strcat(logFileDir,logFile); // add the log file name to the directory so we can create the file
-  dataFile.open(logFileDir, FILE_WRITE);
-  dataFile.println(constructDateTime(5)); // print the date and time at the top of the file
+  Serial.println(logFileDir);
+  if(!dataFile.open(logFileDir, FILE_WRITE)){
+    loggingStatus = fileError;
+    return(false);
+  };
   dataFile.print("\n"); // start another line
+  dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
+  dataFile.print("\n\n"); // start two lines down
   dataFile.println("Time,Lat,Long,RPM,Speed,Xacel,Yacel");
   dataFile.close();
+  return(true);
 }
 void logData()
 {
@@ -129,15 +149,19 @@ void logData()
   {
     if(newLog) // check if this is a new log
     {
-      makeLog(); // make a new log
+      if(!initializeLog()){
+        loggingActive = false; // stop any future logging pocess if the log fails to initialize
+        return; // do not continue
+      } // make a new log if it fails stop the log
+      loggingStatus = logRunning; // note that the logging is now running
       newLog = false; // the log has been made
     }
     dataFile.open(logFileDir, FILE_WRITE);
     dataFile.print(constructDateTime(4).c_str());
     dataFile.print(',');
-    dataFile.print(latitude,6);
+    dataFile.print(latitude,6); // google maps uses 6 decimal places of precision; lets do the same
     dataFile.print(',');
-    dataFile.print(longitude,6);
+    dataFile.print(longitude,6); // google maps uses 6 decimal places of precision; lets do the same
     dataFile.print(',');
     dataFile.print(engRPM);
     dataFile.print(',');
@@ -152,5 +176,7 @@ void logData()
   else
   {
     newLog = true; // start a new log next time
+    if(loggingStatus == logRunning) // if the log status was previously running
+    loggingStatus = loggingOff; // set the status to off
   }
 }

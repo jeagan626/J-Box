@@ -5,6 +5,8 @@
 // since these values could be derived many ways
 extern int engRPM;
 extern bool loggingActive;
-
+extern bool loggingSuccessful;
+enum loggingState {logRunning,sdError,dirError,fileError,loggingOff};
+extern loggingState loggingStatus;
 
 #endif
