@@ -101,12 +101,17 @@ String constructDateTime(uint8_t i)
 
 void initializeSD(){
       SD.begin(SD_CONFIG);
+      //strcpy(dir,"/Datalogs/\0"); // start the directory back at datlogs to avoid funky directories
       strcat(dir,constructDateTime(0).c_str()); //add the current date MM-YYYY to the dir to make a dated folder within "datalogs"
+      //strcat(dir,'\0'); // add the null to terminate the string
       SD.mkdir(dir); // create the dated directory
-  }
+      //strcpy(logFile,"log\0"); // reset the logfile name
+      //strcpy(logFileDir,'\0'); // reset the logfiledir name
+}
 
 void makeLog()
 {
+  initializeSD(); // do this just for good measure
   strcat(logFile,constructDateTime(1).c_str()); // add the current time to the file name
   strcat(logFile,".csv");// tack on the .txt so we can open it later
   strcpy(logFileDir,dir);//add the current directory to the log file directory string
@@ -130,9 +135,9 @@ void logData()
     dataFile.open(logFileDir, FILE_WRITE);
     dataFile.print(constructDateTime(4).c_str());
     dataFile.print(',');
-    dataFile.print(latitude);
+    dataFile.print(latitude,6);
     dataFile.print(',');
-    dataFile.print(longitude);
+    dataFile.print(longitude,6);
     dataFile.print(',');
     dataFile.print(engRPM);
     dataFile.print(',');

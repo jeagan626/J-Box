@@ -1242,7 +1242,7 @@ void initializeEaganM3_Screen(int myRPM = 0)
     lat.digitFont = u8g2_font_6x12_mn;
     lat.unitFont = u8g2_font_5x7_tr;
     strcpy(lat.unitText,"*\0");
-    strcpy(lat.printFormat,"%6.4f\0");
+    strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
     lat.maxVal = -100.1234;
     lat.initialize(-100.1234);
     lon.y0 = speed.yEndBottom() + 15;
