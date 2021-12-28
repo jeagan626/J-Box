@@ -2,6 +2,7 @@
 #include "gps.h"
 #include "logging.h"
 #include <U8g2lib.h> 
+#include "globalData.h"
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
 int tachCount = 0;
@@ -61,10 +62,10 @@ void loop() {
   // Serial.print(pulseInterval);
   // Serial.print("  ");
   //Serial.println(tachFreq);
-  tachRpm = tachFreq * 20;
+  engRPM = tachFreq * 20;
 
-EaganM3_Screen(tachRpm);
-Serial.println(displayUpdateTime);
+EaganM3_Screen(engRPM);
+//Serial.println(displayUpdateTime);
 displayUpdateTime = 0;
 
 //BakerFSAEscreen();

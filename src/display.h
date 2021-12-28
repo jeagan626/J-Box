@@ -28,9 +28,9 @@ void drawEngineTemp(int engineTemp);
 void drawFuel(int fuelLevel);
 void drawVoltage(double battVoltage);
 void drawBackground2();
-#define YP A3  // must be an analog pin, use "An" notation!
+#define YP A1  // must be an analog pin, use "An" notation!
 #define XM A8  // must be an analog pin, use "An" notation!
-#define YM A1  // can be a digital pin
+#define YM A3  // can be a digital pin
 #define XP A2   // can be a digital pin
 const int backlightPin = 23;
 #define MINPRESSURE 10

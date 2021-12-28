@@ -227,11 +227,84 @@ void modifyPointToScreen()
 {
 p.x =  map(p.x,100,944,0,240);
 p.y =  map(p.y,190,860,0,128);
-p.z = abs(map(p.z,900,300,0,255));
+if(p.z < 5)
+{
+    return; // ignore values below 5: they show up when not pressed
 }
+p.z = abs(map(p.z,900,250,0,255));
+}
+
 TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
-//enum screens {menu,settings,gps,naughtTo60Timer};
-//screens currentScreen = settings;
+enum screens {menu,settings,gps,naughtTo60Timer};
+screens currentScreen = settings;
+
+class touchEvent
+{
+    public:
+    int x = 0;
+    int y = 0;
+    uint8_t minimumDuration = 15;
+    uint8_t staleDuration = 30;
+    int duration = 0;
+    int minPressure = 40;
+    int maxPressure = 255;
+
+    private:
+    elapsedMillis touchDuration;
+    elapsedMillis lastEvent;
+    bool isScreenPressed = false;
+    int touchEventDuration = 0;
+
+    public:
+    void detect() // the detect touch function serves to identify if the screen has been touched, if it meets the minimum duration
+    {
+        p = ts.getPoint();
+        modifyPointToScreen();
+        Serial.print(p.x);
+        Serial.print(",");
+        Serial.print(p.y);
+        Serial.print(",");
+        Serial.println(p.z);
+        if (p.z > minPressure && p.z < maxPressure) // if the pressure meets our criteria
+        {
+            if(isScreenPressed == false) // if the screen was previously not pressed
+            {
+                touchDuration = 0; // reset the touch duration counter
+            }
+            isScreenPressed = true; // note that the screen is now being pressed
+            x = p.x;
+            y = p.y;
+            
+            // Serial.print(",");
+            // Serial.print(y);
+            // Serial.print(",");
+            // Serial.print(touchDuration);
+        }
+        else
+        {
+            if(isScreenPressed == true) // if the screen was previously being pressed
+            {
+                touchEventDuration = touchDuration; // record the duration of the touch event
+                duration = touchEventDuration;
+                lastEvent = 0; // record the time since the last press
+            }
+            isScreenPressed = false; // note that the screen is no longer being pressed
+
+        }
+    }
+    bool isPressed()
+    {
+        return(isScreenPressed);
+    }
+    bool isPressValid()
+    {
+        return( (touchEventDuration > minimumDuration) && (lastEvent < staleDuration) && (isScreenPressed == false)  );
+        // all of these conditions must be true for a valid touch press
+    }
+
+};
+
+touchEvent tap;
 
 void initializeDisplay()
 {
@@ -357,28 +430,76 @@ void initializeEaganInsightScreen()
 {
     //drawBoxGauge(rpm, 6500, 1000, 5800);
 }
+
+bool updateScreen = false; // this is a legacy variable used for the menuscreen function
 void menuScreen()
 {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-    u8g2.drawStr(32,18,"Menu");
-    u8g2.drawLine(0,19,240,19);
-    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-    u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-    u8g2.drawStr(0,40,"Device Settings");
-    u8g2.drawStr(0,60,"");
-    u8g2.drawStr(0,80,"Acceleration Tests");
-    
-
-    
-    
-    
-    u8g2.sendBuffer();
-    u8g2.setDrawColor(1); // reset the draw color back to the default
-
-
-
-
+    switch (currentScreen)
+    {
+    case menu:
+        if(updateScreen){
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+            u8g2.drawStr(32,18,"Menu");
+            u8g2.drawLine(0,19,240,19);
+            ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+            u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+            u8g2.drawStr(0,40,"Device Settings");
+            u8g2.drawStr(0,60,"Option 2");
+            u8g2.drawStr(0,80,"Acceleration Tests");
+            u8g2.sendBuffer();
+            u8g2.setDrawColor(1); // reset the draw color back to the default
+            updateScreen = false;
+        }
+        p = ts.getPoint();
+        if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+            modifyPointToScreen();
+            Serial.print(p.x);
+            Serial.print(',');
+            Serial.print(p.y);
+            Serial.print(',');
+            Serial.println(p.z);
+            if(abs(p.y-30) < 10 ){
+                currentScreen = settings;
+                updateScreen = true;
+            }
+        }
+        break;
+        case settings:
+        if(updateScreen){
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+            u8g2.drawStr(5,18,"<");
+            u8g2.drawStr(32,18,"Device Settings");
+            u8g2.drawLine(0,19,240,19);
+            ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+            u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+            u8g2.drawStr(0,40,"Calibrate Screen");
+            u8g2.drawStr(0,60,"Logging Options");
+            u8g2.drawStr(0,80,"COM Settings");
+            u8g2.sendBuffer();
+            u8g2.setDrawColor(1); // reset the draw color back to the default
+            updateScreen = false;
+        }
+        p = ts.getPoint();
+        if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+            modifyPointToScreen();
+            Serial.print(p.x);
+            Serial.print(',');
+            Serial.print(p.y);
+            Serial.print(',');
+            Serial.println(p.z);
+            if(abs(p.y-30) < 10 ){ //
+                currentScreen = settings;
+                updateScreen = true;
+            }
+             if(abs(p.y-5) < 8 ){ //
+                currentScreen = menu;
+                updateScreen = true;
+            }
+        }
+        break;
+    }
 }
 
 // Draws a portion of a cicle, angle in radians. Keep in mind y axis is flipped.
@@ -839,7 +960,7 @@ class statusMessage
     void displayDate()
     {
         //char dateTimeString [20] = constructDateTime(2).c_str();
-        display(constructDateTime(2).c_str());
+        display(constructDateTime(3).c_str());
     }
 
 
@@ -944,6 +1065,98 @@ class digitalGauge
     }
 };
 
+class button
+{
+    public:
+    int x0 = 0;
+    int y0 = 0;
+    int height = 0;
+    int width = 0;
+    uint8_t* textFont = u8g2_font_VCR_OSD_mf;
+    char message[32] = "DEFAULT";
+
+    private:
+    bool isActive = false;
+    int text_y0 = 0; // top of the text message
+    int box_y0 = 0;
+    int box_y1 = 0;
+    int box_x0 = 0;
+    int box_x1 = 0;
+
+    // possible additions might be to shade the button if it is being pressed
+
+    public:
+    void setText(char* myMessage)
+    {
+        strcpy(message,myMessage);
+    }
+
+    void initalize()
+    {
+        // calculate the appropriate values to draw and format the button
+
+
+        // draw the button
+        u8g2.setFont(textFont);
+        width = u8g2.getStrWidth(message);
+        height = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        int text_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
+        
+        // todo there should be a variable to adjust padding or the amount of space on the edge
+        int xPadding = 1;
+        box_x0 = x0 - xPadding;
+        box_x1 = x0 + width + xPadding;
+
+        int yPadding = 2;
+        box_y0 = text_y0 - yPadding;
+        box_y1 = text_y0 + height + yPadding;
+        //draw the button
+        u8g2.drawStr(x0,y0,message);
+        u8g2.drawFrame(box_x0,box_y0,box_x1 - box_x0,box_y1 - box_y0);
+
+        // assign an action function to the button
+
+    }
+    void draw()
+    {
+        clearBox(box_x0,box_y0,box_x1 - box_x0,box_y1 - box_y0);
+        u8g2.setFont(textFont);
+        u8g2.drawStr(x0,y0,message);
+        u8g2.drawFrame(box_x0,box_y0,box_x1 - box_x0,box_y1 - box_y0);
+    }
+
+    void fillButton()
+    {
+        u8g2.setFontMode(1);
+        u8g2.setDrawColor(1);
+        u8g2.drawBox(box_x0,box_y0,box_x1 - box_x0,box_y1 - box_y0);
+        u8g2.setDrawColor(2); // make sure the message will stay visable
+        u8g2.setFont(textFont);
+        u8g2.drawStr(x0,y0,message);
+        u8g2.setDrawColor(1);
+        u8g2.setFontMode(0);
+    }
+    
+    void read() // maybe call this read
+    {
+        if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1) && tap.isPressed()) {
+        // check to see if the tap is inside the button box
+            fillButton();
+            updateRequest = true;
+            if(tap.isPressValid()){
+                Serial.println("we got it!");
+                
+                
+            }
+        }
+        else{
+            draw();
+        }
+
+    }
+    
+};
+
 boxGauge tachometer;
 digitalGauge speed;
 digitalGauge xAcel;
@@ -953,6 +1166,8 @@ digitalGauge lon;
 statusMessage GPS_status;
 statusMessage loggingStatus;
 statusMessage date;
+button logButton;
+button menuButton;
 
 
 
@@ -964,11 +1179,11 @@ void initializeEaganM3_Screen(int myRPM = 0)
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatus.y0 = 8;
     loggingStatus.x0 = GPS_status.xEnd() + 8;
-    loggingStatus.offsetStatus(4);
-    loggingStatus.initialize("logging:","OFF");
+    loggingStatus.offsetStatus(2);
+    loggingStatus.initialize("LOG:","OFF");
     date.y0 = 8;
     date.x0 = loggingStatus.xEnd() + 5;
-    date.initialize("",constructDateTime(2).c_str());
+    date.initialize("",constructDateTime(3).c_str());
     //boxGauge tachometer;
     tachometer.yStart = 12;
     tachometer.redLine = 7500;
@@ -1011,11 +1226,22 @@ void initializeEaganM3_Screen(int myRPM = 0)
     strcpy(lon.printFormat,"%6.4f\0");
     lon.maxVal = -100.1234;
     lon.initialize(-100.1234);
+    logButton.x0 = 190;
+    logButton.y0 = 120;
+    logButton.setText("LOG");
+    logButton.initalize();
+    menuButton.x0 = 20;
+    menuButton.y0 = 120;
+    menuButton.setText("MENU");
+    menuButton.initalize();
     u8g2.sendBuffer();
 }
 void EaganM3_Screen(int myRPM = 0)
 {
     updateRequest = false;
+    tap.detect();
+    logButton.read();
+    menuButton.read();
     GPS_status.displayGPS_status();
     date.displayDate();
     tachometer.display(myRPM);
@@ -1024,6 +1250,7 @@ void EaganM3_Screen(int myRPM = 0)
     yAcel.display(yAccel/10);
     lat.display(latitude);
     lon.display(longitude);
+    
     
     //speed.updateArea();
     if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
