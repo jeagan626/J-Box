@@ -1270,10 +1270,10 @@ void EaganM3_Screen(int myRPM = 0)
     tap.detect();
     logButton.read();
     menuButton.read();
+    tachometer.display(engRPM);
     GPS_status.displayGPS_status();
     loggingStatus.displayLog_status();
     date.displayDate();
-    tachometer.display(myRPM);
     speed.display(gpsSpeed);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
     yAcel.display(yAccel/10);
