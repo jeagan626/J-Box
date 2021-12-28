@@ -69,7 +69,7 @@ unsigned int rtc_ms()
 // 3 
 String constructDateTime(uint8_t i)
 { 
-  char dateTimeString[20] = "";
+  char dateTimeString[24] = "";
   switch (i)
   {
     case 0:
