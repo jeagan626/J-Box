@@ -30,8 +30,6 @@ void setup() {
   // delay(100);
   // digitalWrite(LED_BUILTIN, LOW);
   // delay(100);
-  // drawBoxGauge(8000,12000,cutoff);
-  // circularGaugeLayout();
   initializeDisplay();
   setSyncProvider(getTeensy3Time);
   Serial.begin(9600);
@@ -44,7 +42,7 @@ void setup() {
   pinMode(LED_BUILTIN,OUTPUT);
   initializeGPS();
   initializeSD();
-  initializeEaganM3_Screen();
+  //initializeEaganM3_Screen();
   //gpsSpeed = 0;
 }
 
@@ -55,7 +53,7 @@ void loop() {
     lastLogEntry = 0;
   }
   updateGPS();
-
+  //Serial.println(displayUpdateTime);
   int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
    if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
     tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
@@ -71,7 +69,8 @@ void loop() {
   //Serial.println(tachFreq);
   engRPM = tachFreq * 20;
 
-EaganM3_Screen(engRPM);
+//EaganM3_Screen();
+displayScreen();
 //Serial.println(displayUpdateTime);
 displayUpdateTime = 0;
 

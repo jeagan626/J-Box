@@ -16,8 +16,9 @@ void initializeBakerFSAEscreen();
 void BakerFSAEscreen();
 //class performanceTestScreen
 
-void initializeEaganM3_Screen(int myRPM = 0);
-void EaganM3_Screen(int myRPM = 0);
+void initializeEaganM3_Screen();
+void EaganM3_Screen();
+void displayScreen();
 void initializeEaganInsightScreen();
 void drawMph(int mph);
 void drawRpm(int rpm);
