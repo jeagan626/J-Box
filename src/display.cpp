@@ -1532,7 +1532,7 @@ void insightScreen()
 void initializeInsightScreen()
 {
     u8g2.clearBuffer();
-    pulsePerRPM = 20; // the insight uses 20 pulses per RPM
+    pulsePerRPM = 36; // the insight uses 30 pulses per RPM
     GPS_status.y0 = 8;
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatusMessage.y0 = 8;

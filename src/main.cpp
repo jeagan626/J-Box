@@ -35,7 +35,6 @@ void setup() {
   setSyncProvider(getTeensy3Time);
   Serial.begin(9600);
   Serial.println("test");
-  
   //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
