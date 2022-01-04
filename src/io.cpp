@@ -95,8 +95,8 @@ void readTach()
    { // use the new frequency
     tachFreq = newtachFreq;
    }
-  Serial.println(tachFreq);
-  engRPM = tachFreq * pulsePerRPM;
+  //Serial.println(tachFreq);
+  engRPM = tachFreq * rpmPerPulse;
 }
 
 

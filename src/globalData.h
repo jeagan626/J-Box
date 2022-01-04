@@ -13,7 +13,7 @@ extern int knockValue;
 extern int maxKnockValue;
 extern int AirFuelRatio;
 
-extern int pulsePerRPM;
+extern int rpmPerPulse;
 extern bool loggingActive;
 extern bool loggingSuccessful;
 enum loggingState {logRunning,sdError,dirError,fileError,loggingOff};

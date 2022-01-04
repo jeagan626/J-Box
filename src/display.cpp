@@ -1421,7 +1421,7 @@ button menuButton;
 void initializeEaganM3_Screen()
 {
     u8g2.clearBuffer();
-    pulsePerRPM = 25; // the M3 uses 25 pulses per RPM
+    rpmPerPulse = 20; // the M3 uses 20 pulses per RPM
     GPS_status.y0 = 8;
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatusMessage.y0 = 8;
@@ -1532,7 +1532,7 @@ void insightScreen()
 void initializeInsightScreen()
 {
     u8g2.clearBuffer();
-    pulsePerRPM = 36; // the insight uses 36 pulses per RPM
+    rpmPerPulse = 36; // the insight uses 36 pulses per RPM
     GPS_status.y0 = 8;
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatusMessage.y0 = 8;

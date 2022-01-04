@@ -9,7 +9,7 @@ int knockValue = 0;
 int maxKnockValue = 0;
 int AirFuelRatio = 0;
 
-int pulsePerRPM = 20;
+int rpmPerPulse = 20;
 
 bool loggingActive = false;
 bool loggingSuccessful = false;
