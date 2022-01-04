@@ -35,15 +35,16 @@ void setup() {
   setSyncProvider(getTeensy3Time);
   Serial.begin(9600);
   Serial.println("test");
-  pinMode(32,INPUT);
-  attachInterrupt(32,tachPulseEvent,CHANGE);
-  checkPulses.begin(pulseTally,50000);
+  
   //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
   initializeIO();
   initializeGPS();
   initializeSD();
+  pinMode(32,INPUT);
+  attachInterrupt(32,tachPulseEvent,CHANGE);
+  checkPulses.begin(pulseTally,50000);
   //initializeEaganM3_Screen();
   //gpsSpeed = 0;
 }
@@ -65,11 +66,11 @@ void loop() {
    { // use the new frequency
     tachFreq = newtachFreq;
    }
-  //Serial.print(pulseCount);
-  //Serial.print("  ");
-  // Serial.print(pulseInterval);
-  // Serial.print("  ");
-  //Serial.println(tachFreq);
+  Serial.print(pulseCount);
+  Serial.print("  ");
+  Serial.print(pulseInterval);
+  Serial.print("  ");
+  Serial.println(tachFreq);
   engRPM = tachFreq * pulsePerRPM;
 
 //EaganM3_Screen();
