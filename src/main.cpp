@@ -6,6 +6,10 @@
 #include "globalData.h"
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
+const uint8_t numPulses = 10;
+volatile unsigned long pulseTime[numPulses] = {0}; // keep track of the last 10 pulse times
+volatile uint8_t pulseIndex = 0; // used to record to pulsetime
+unsigned int pulseDeltaTimes[numPulses]; // keep track of the last 10 pulse times
 int tachCount = 0;
 int pulseInterval = 100;
 int tachFreq = 0;
@@ -16,6 +20,12 @@ elapsedMillis lastLogEntry;
 IntervalTimer checkPulses;
 void tachPulseEvent()
 {
+  pulseTime[pulseIndex] = micros(); // note the time in microseconds when the pulse occured
+  pulseIndex++;
+  if(pulseIndex >= numPulses) // if the pulse index exceeds the array length
+  {
+    pulseIndex = 0; // reset the pulse index
+  }
   tachPulse++;
 }
 void pulseTally()
@@ -42,7 +52,7 @@ void setup() {
   initializeGPS();
   initializeSD();
   pinMode(32,INPUT);
-  attachInterrupt(32,tachPulseEvent,CHANGE);
+  attachInterrupt(32,tachPulseEvent,FALLING);
   checkPulses.begin(pulseTally,50000);
   //initializeEaganM3_Screen();
   //gpsSpeed = 0;
@@ -57,6 +67,22 @@ void loop() {
   }
   updateGPS();
   //Serial.println(displayUpdateTime);
+  unsigned long pulseDeltaAvg = 0;
+  noInterrupts();
+  for(uint8_t i = 1; i < numPulses; i++)
+  {
+    unsigned int pulseDelta = abs(pulseTime[i] - pulseTime[i-1]); // find the diffrence in time between the two pulses
+    
+    //pulseDelta = pulseDelta / 100; // devide by 100 to get int milliseconds
+    Serial.println(pulseDelta);
+    pulseDeltaAvg = pulseDelta + pulseDeltaAvg; // add the pulse delta to the running average
+  }
+  interrupts();
+  Serial.println(pulseDeltaAvg);
+  pulseDeltaAvg = pulseDeltaAvg / (numPulses - 1); 
+  Serial.println(pulseDeltaAvg);
+
+
   int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
    if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
     tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
@@ -65,11 +91,11 @@ void loop() {
    { // use the new frequency
     tachFreq = newtachFreq;
    }
-  Serial.print(pulseCount);
-  Serial.print("  ");
-  Serial.print(pulseInterval);
-  Serial.print("  ");
-  Serial.println(tachFreq);
+  // Serial.print(pulseCount);
+  // Serial.print("  ");
+  // Serial.print(pulseInterval);
+  // Serial.print("  ");
+  // Serial.println(tachFreq);
   engRPM = tachFreq * pulsePerRPM;
 
 //EaganM3_Screen();
