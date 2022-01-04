@@ -1,6 +1,7 @@
 #include "display.h"
 #include "gps.h"
 #include "logging.h"
+#include "io.h"
 #include <U8g2lib.h> 
 #include "globalData.h"
 volatile int tachPulse = 0;
@@ -40,6 +41,7 @@ void setup() {
   //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
+  initializeIO();
   initializeGPS();
   initializeSD();
   //initializeEaganM3_Screen();
@@ -49,6 +51,7 @@ void setup() {
 void loop() {
   if(lastLogEntry > 50)
   {
+    readIO();
     logData();
     lastLogEntry = 0;
   }
@@ -67,7 +70,7 @@ void loop() {
   // Serial.print(pulseInterval);
   // Serial.print("  ");
   //Serial.println(tachFreq);
-  engRPM = tachFreq * 20;
+  engRPM = tachFreq * pulsePerRPM;
 
 //EaganM3_Screen();
 displayScreen();

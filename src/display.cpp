@@ -218,7 +218,7 @@ String gears[6] = {"N","1","2","3","4","5"}; // this could probably be done with
 int gIndex = 0;
 int gearDir = 1;
 bool updateRequest = true; // use this as a flag to see if the screen needs to be updated
-void (*screenPointer)() = &initializeEaganM3_Screen; // this points to the screen we want to show
+void (*screenPointer)() = &initializeMenuScreen; // this points to the screen we want to show
 void (*lastScreen)(); // this stores the last screen displayed
 
 
@@ -293,11 +293,11 @@ class touchEvent
             traceIndex++;
             if(traceIndex >= numTraces) { traceIndex = 0;} // if we exceed the maximum number of traces reset it
             
-            Serial.print(x);
-            Serial.print(",");
-            Serial.print(y);
-            Serial.print(",");
-            Serial.println(touchDuration);
+            // Serial.print(x);
+            // Serial.print(",");
+            // Serial.print(y);
+            // Serial.print(",");
+            // Serial.println(touchDuration);
         }
         else
         {
@@ -305,7 +305,17 @@ class touchEvent
             {
                 touchEventDuration = touchDuration; // record the duration of the touch event
                 duration = touchEventDuration;
-                traceData[traceIndex].t = duration;
+                for(int i = traceIndex + 1; i < numTraces; i++)
+                // go through the trace loop and fill in any remaining spots with the last available data
+                {
+                  traceData[i].x = traceData[traceIndex].x;
+                  traceData[i].y = traceData[traceIndex].y;
+                  traceData[i].z = traceData[traceIndex].z;
+                  //traceData[i].t = traceData[traceIndex].t;
+                  traceData[i].t = duration; // use the current duration to reflect the total time of press
+
+                }
+                //traceData[traceIndex].t = duration;
                 lastEvent = 0; // record the time since the last press
                 traceIndex = 0; // reset the trace index
             }
@@ -320,7 +330,10 @@ class touchEvent
     
     bool isAreaPressed(int xCenter, int yCenter, int width, int height)
     {
-       
+       if(isScreenPressed == false)
+       {
+           return(false);
+       }
        // test for a faulty case and return false if found
        if(abs(x - xCenter) > width)
        {
@@ -344,9 +357,15 @@ class touchEvent
 
     bool isAreaTapped(int xCenter, int yCenter, int width, int height)
     {
+        // a better way to do this might be to go from the last trace value back to the first
+        // basically checking that the button has been pressed
+        // might be able just to run the loop backwards from the trace index
+        if((lastEvent > staleDuration)){ // check to make sure the event did not occur too long ago
+            return(false);
+        }
         int i = 0;
-        #define minHoldDuration 90
-        while(traceData[i].t < minHoldDuration && i < numTraces) //go though the first 100ms of trace data or until the index expries
+        #define minHoldDuration 80
+        while( (traceData[i].t < minHoldDuration) && (i < numTraces)) //go though the trace data until the hold duration is exceeded or the index expries
         {
             // test for a faulty case and return false if found
             // see if the diffrence between the location of known touch points and the center is greater than the allowable tolerance
@@ -397,6 +416,8 @@ class touchEvent
             i++; //increment the index
         }
         // if we pass all tests then our area must have been tapped
+        // clear the area
+        
         return(true);
     }
 
@@ -437,10 +458,11 @@ void displayScreen()
     lastDisplayUpdate = millis();
     }
 }
+
 void initializeBakerFSAEscreen()
 {
   u8g2.clearBuffer();
-  u8g2.drawXBM( 100, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
+  u8g2.drawXBM( 80, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
   u8g2.sendBuffer();
   delay(2000);
   u8g2.clearBuffer();
@@ -976,7 +998,7 @@ class statusMessage
         status_y0 += status_yOffset;
     }
 
-    void initialize(const char * message, const char * status) // performs all formatting calculations call this once
+    void initialize(const char * message, const char * status, int status_xOffset = 0,int status_yOffset = 0) // performs all formatting calculations call this once
     {
         // draw the message
         u8g2.setFont(messageFont);
@@ -986,6 +1008,7 @@ class statusMessage
         messageHeight = messageAscent - messageDecent; // the area the message can occupy
         y1 = y0 + messageDecent; // find the absolute bottom of the message
         y00 = y0 - messageAscent; // the upper corner of the message
+        clearBox(x0,y00,messageWidth,messageHeight); // clear the area just for good measure
         u8g2.drawStr(x0,y0,message);// draw the message
         
         // draw the initial status
@@ -995,10 +1018,11 @@ class statusMessage
         statusWidth = u8g2.getStrWidth(status);
         statusHeight = statusAscent - statusDecent; // the area the message can occupy
         statusTop = y0 - statusAscent; // the upper corner of the message
-        status_x0 = x0 + messageWidth; // start the status text at the end of the message
-        status_y0 = y0;
+        status_x0 = x0 + messageWidth + status_xOffset; // start the status text at the end of the message
+        status_y0 = y0 + status_yOffset;
         u8g2.drawStr(status_x0,status_y0,status);
     }
+    
     void display(const char * status)
     {
         clearBox(status_x0,statusTop,statusWidth,statusHeight);
@@ -1098,7 +1122,6 @@ class digitalGauge
         initializeFormatting(); // perform the formatting calculations so we can imediately call the functions below
     }
 
-
     int xEnd()
     {
         u8g2.setFont(unitFont); // set the font to the unit font so the appropriate width can be calculated
@@ -1185,6 +1208,7 @@ class digitalGauge
         display(val);
     }
 };
+
 
 class button
 {
@@ -1277,12 +1301,13 @@ class button
         if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
         // check to see if the tap is inside the button box
             if(tap.isPressed()){ // if the user is pressing the button
-                fillButton();
+            //if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){
+                    fillButton();
                 //Serial.println("pressed");
                 updateRequest = true;
             }
             if(tap.isTapped()){ // if the user tapped the button
-            // if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
+             //if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
                 Serial.println("we got it!");
                 draw();
                 updateRequest = true;
@@ -1298,9 +1323,90 @@ class button
         }
 
     }
+    /*void read() // this is the gamma stage of detecting presses in a more sophisticated way
+    // but for now it doesnt work as well
+    {
+        //if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
+          
+        // check to see if the tap is inside the button box
+            //if(tap.isPressed()){ // if the user is pressing the button
+            if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){
+                    fillButton();
+                //Serial.println("pressed");
+                updateRequest = true;
+            }
+            //if(tap.isTapped()){ // if the user tapped the button
+             if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
+                Serial.println("we got it!");
+                draw();
+                updateRequest = true;
+                if(actionAssigned){ // make sure there is an action assigned before runing anything
+                    actionFunction(); // Run the function that we previously associated with the button
+                }
+            }
+        //}
+        else{
+            if(tap.isPressed()){ // if we are outside the button box but still pressing the screen
+            draw();
+            }
+        }
+
+    }
+    */
     
 };
 
+void changeLogging_state()
+{
+    loggingActive = !loggingActive;
+}
+
+// objects used for menu screen
+button M3ScreenButton;
+button scRacingScreenButton;
+button insightScreenButton;
+void initializeInsightScreen(); // need function declaration before being called in menu screen
+void initializeMenuScreen()
+{
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+    u8g2.drawStr(32,18,"Menu");
+    u8g2.drawLine(0,19,240,19);
+    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+    M3ScreenButton.x0 = 10;
+    M3ScreenButton.y0 = 40;
+    M3ScreenButton.setText("M3 Screen");
+    M3ScreenButton.initalize();
+    M3ScreenButton.assignAction(&initializeEaganM3_Screen);
+    insightScreenButton.x0 = 10;
+    insightScreenButton.y0 = 70;
+    insightScreenButton.setText("Insight Screen");
+    insightScreenButton.initalize();
+    insightScreenButton.assignAction(&initializeInsightScreen);
+    //insightScreenButton.assignAction(&initializeEaganInsightScreen);
+    scRacingScreenButton.x0 = 10;
+    scRacingScreenButton.y0 = 100;
+    scRacingScreenButton.setText("USC Racing Screen");
+    scRacingScreenButton.initalize();
+    scRacingScreenButton.assignAction(&initializeBakerFSAEscreen);
+    // u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+    // u8g2.drawStr(0,40,"Device Settings");
+    // u8g2.drawStr(0,60,"Option 2");
+    // u8g2.drawStr(0,80,"Acceleration Tests");
+    u8g2.sendBuffer();
+    // u8g2.setDrawColor(1); // reset the draw color back to the default
+    screenPointer = &menuScreen; // switch to the menu screen from now on
+}
+
+void menuScreen()
+{
+    tap.detect();
+    M3ScreenButton.read();
+    insightScreenButton.read();
+    scRacingScreenButton.read();
+}
+
+//objects used for M3 screen
 boxGauge tachometer;
 digitalGauge speed;
 digitalGauge xAcel;
@@ -1312,14 +1418,251 @@ statusMessage loggingStatusMessage;
 statusMessage date;
 button logButton;
 button menuButton;
-button plus;
-button minus;
-
-void changeLogging_state()
+void initializeEaganM3_Screen()
 {
-    loggingActive = !loggingActive;
+    u8g2.clearBuffer();
+    pulsePerRPM = 25; // the M3 uses 25 pulses per RPM
+    GPS_status.y0 = 8;
+    GPS_status.initialize("GPS: ","Disconnected");
+    loggingStatusMessage.y0 = 8;
+    loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+    loggingStatusMessage.initialize("LOG:","sdErr",2);
+    date.y0 = 8;
+    date.x0 = loggingStatusMessage.xEnd() + 5;
+    date.initialize("",constructDateTime(3).c_str());
+    //boxGauge tachometer;
+    tachometer.yStart = 12;
+    tachometer.redLine = 7500;
+    tachometer.max = 8500;
+    tachometer.cutoff = 2000;
+    tachometer.height = 25;
+    //u8g2.print("gps not functional");
+    tachometer.drawBoxGauge(engRPM);
+    //digitalGauge speed;
+    strcpy(speed.printFormat,"%3.0f\0");
+    speed.initialize(88);
+    //digitalGauge xAcel;
+    xAcel.maxVal = -99.0;
+    xAcel.x0 = speed.xEnd();
+    //xAcel.y0 = 120; 
+    strcpy(xAcel.unitText,"xgs\0");
+    strcpy(xAcel.printFormat,"%+2.0f\0");
+    xAcel.unitFont = u8g2_font_t0_12_tf;
+    xAcel.unitLocation(1,10);
+    xAcel.initialize(99);
+    //digitalGauge yAcel;
+    yAcel.maxVal = -99;
+    strcpy(yAcel.printFormat,"%+2.0f\0");
+    yAcel.x0 = xAcel.xEnd();
+    strcpy(yAcel.unitText,"ygs\0");
+    yAcel.unitFont = u8g2_font_t0_12_tf;
+    yAcel.unitLocation(1,10);
+    yAcel.initialize(99);
+    lat.y0 = speed.yEndBottom() + 15;
+    lat.digitFont = u8g2_font_6x12_mn;
+    lat.unitFont = u8g2_font_5x7_tr;
+    strcpy(lat.unitText,"*\0");
+    strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
+    lat.maxVal = -100.1234;
+    lat.initialize(-100.1234);
+    lon.y0 = speed.yEndBottom() + 15;
+    lon.digitFont = u8g2_font_6x12_mn;
+    lon.unitFont = u8g2_font_5x7_tr;
+    lon.x0 = lat.xEnd() + 30;
+    strcpy(lon.unitText,"*\0");
+    strcpy(lon.printFormat,"%6.4f\0");
+    lon.maxVal = -100.1234;
+    lon.initialize(-100.1234);
+    logButton.x0 = 190;
+    logButton.y0 = 120;
+    logButton.setText("LOG");
+    logButton.initalize();
+    logButton.assignAction(&changeLogging_state);
+    menuButton.x0 = 20;
+    menuButton.y0 = 120;
+    menuButton.setText("MENU");
+    menuButton.initalize();
+    menuButton.assignAction(&initializeMenuScreen);
+    u8g2.sendBuffer();
+    screenPointer = &EaganM3_Screen; // change the screen pointer to display the M3screen now
 }
 
+void EaganM3_Screen()
+{
+    // updateRequest = false; // now in the main display screen function
+    // tap.detect();
+    logButton.read();
+    tachometer.display(engRPM);
+    GPS_status.displayGPS_status();
+    loggingStatusMessage.displayLog_status();
+    date.displayDate();
+    speed.display(gpsSpeed);
+    xAcel.display(xAccel/10); // display acceleration in 10ths of a G
+    yAcel.display(yAccel/10);
+    lat.display(latitude);
+    lon.display(longitude);
+    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the m3 screen function will run where it left off
+    
+    //speed.updateArea();
+}
+
+// additional objects used by the insight screen
+digitalGauge oilPressGauge;
+digitalGauge AFR;
+digitalGauge TPSval;
+
+void insightScreen()
+{
+    // updateRequest = false; // now in the main display screen function
+    // tap.detect();
+    logButton.read();
+    tachometer.display(engRPM);
+    GPS_status.displayGPS_status();
+    loggingStatusMessage.displayLog_status();
+    date.displayDate();
+    speed.display(oilPressure);
+    xAcel.display(xAccel/10); // display acceleration in 10ths of a G
+    yAcel.display(yAccel/10);
+    lat.display(latitude);
+    lon.display(longitude);
+    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the m3 screen function will run where it left off
+    
+    //speed.updateArea();
+}
+void initializeInsightScreen()
+{
+    u8g2.clearBuffer();
+    pulsePerRPM = 20; // the insight uses 20 pulses per RPM
+    GPS_status.y0 = 8;
+    GPS_status.initialize("GPS: ","Disconnected");
+    loggingStatusMessage.y0 = 8;
+    loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+    loggingStatusMessage.initialize("LOG:","sdErr",2);
+    date.y0 = 8;
+    date.x0 = loggingStatusMessage.xEnd() + 5;
+    date.initialize("",constructDateTime(3).c_str());
+    tachometer.yStart = 12;
+    tachometer.redLine = 5800;
+    tachometer.max = 6500;
+    tachometer.cutoff = 2000;
+    tachometer.height = 15;
+    tachometer.drawBoxGauge(engRPM);
+    strcpy(speed.printFormat,"%3.0f\0");
+    speed.initialize(88);
+    xAcel.maxVal = -99.0;
+    xAcel.x0 = speed.xEnd();
+    strcpy(xAcel.unitText,"xgs\0");
+    strcpy(xAcel.printFormat,"%+2.0f\0");
+    xAcel.unitFont = u8g2_font_t0_12_tf;
+    xAcel.unitLocation(1,10);
+    xAcel.initialize(99);
+    yAcel.maxVal = -99;
+    strcpy(yAcel.printFormat,"%+2.0f\0");
+    yAcel.x0 = xAcel.xEnd();
+    strcpy(yAcel.unitText,"ygs\0");
+    yAcel.unitFont = u8g2_font_t0_12_tf;
+    yAcel.unitLocation(1,10);
+    yAcel.initialize(99);
+    lat.y0 = speed.yEndBottom() + 15;
+    lat.digitFont = u8g2_font_6x12_mn;
+    lat.unitFont = u8g2_font_5x7_tr;
+    strcpy(lat.unitText,"*\0");
+    strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
+    lat.maxVal = -100.1234;
+    lat.initialize(-100.1234);
+    lon.y0 = speed.yEndBottom() + 15;
+    lon.digitFont = u8g2_font_6x12_mn;
+    lon.unitFont = u8g2_font_5x7_tr;
+    lon.x0 = lat.xEnd() + 30;
+    strcpy(lon.unitText,"*\0");
+    strcpy(lon.printFormat,"%6.4f\0");
+    lon.maxVal = -100.1234;
+    lon.initialize(-100.1234);
+    logButton.x0 = 200;
+    logButton.y0 = 127;
+    logButton.setText("LOG");
+    logButton.initalize();
+    logButton.assignAction(&changeLogging_state);
+    menuButton.x0 = 1;
+    menuButton.y0 = 127;
+    menuButton.setText("MENU");
+    menuButton.initalize();
+    menuButton.assignAction(&initializeMenuScreen);
+    u8g2.sendBuffer();
+    screenPointer = &insightScreen; // change the screen pointer to display the insightscreen now
+}
+// void menuScreen()  // legacy menu screen
+// {
+//     screenPointer = &menuScreen; // switch to the menu screen from now on
+//     switch (currentScreen)
+//     {
+//     case menu:
+//         if(updateScreen){
+//             u8g2.clearBuffer();
+//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+//             u8g2.drawStr(32,18,"Menu");
+//             u8g2.drawLine(0,19,240,19);
+//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+//             u8g2.drawStr(0,40,"Device Settings");
+//             u8g2.drawStr(0,60,"Option 2");
+//             u8g2.drawStr(0,80,"Acceleration Tests");
+//             u8g2.sendBuffer();
+//             u8g2.setDrawColor(1); // reset the draw color back to the default
+//             updateScreen = false;
+//         }
+//         p = ts.getPoint();
+//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+//             modifyPointToScreen();
+//             Serial.print(p.x);
+//             Serial.print(',');
+//             Serial.print(p.y);
+//             Serial.print(',');
+//             Serial.println(p.z);
+//             if(abs(p.y-30) < 10 ){
+//                 currentScreen = settings;
+//                 updateScreen = true;
+//             }
+//         }
+//         break;
+//         case settings:
+//         if(updateScreen){
+//             u8g2.clearBuffer();
+//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+//             u8g2.drawStr(5,18,"<");
+//             u8g2.drawStr(32,18,"Device Settings");
+//             u8g2.drawLine(0,19,240,19);
+//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+//             u8g2.drawStr(0,40,"Calibrate Screen");
+//             u8g2.drawStr(0,60,"Logging Options");
+//             u8g2.drawStr(0,80,"COM Settings");
+//             u8g2.sendBuffer();
+//             u8g2.setDrawColor(1); // reset the draw color back to the default
+//             updateScreen = false;
+//         }
+//         p = ts.getPoint();
+//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+//             modifyPointToScreen();
+//             Serial.print(p.x);
+//             Serial.print(',');
+//             Serial.print(p.y);
+//             Serial.print(',');
+//             Serial.println(p.z);
+//             if(abs(p.y-30) < 10 ){ //
+//                 currentScreen = settings;
+//                 updateScreen = true;
+//             }
+//              if(abs(p.y-5) < 8 ){ //
+//                 currentScreen = menu;
+//                 updateScreen = true;
+//             }
+//         }
+//         break;
+//     }
+// }
+
+// old class system to display the screens
 class myM3Screen
 {
     private:
@@ -1343,8 +1686,7 @@ class myM3Screen
             GPS_status.initialize("GPS: ","Disconnected");
             loggingStatusMessage.y0 = 8;
             loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
-            loggingStatusMessage.offsetStatus(2);
-            loggingStatusMessage.initialize("LOG:","sdErr");
+            loggingStatusMessage.initialize("LOG:","sdErr",2);
             date.y0 = 8;
             date.x0 = loggingStatusMessage.xEnd() + 5;
             date.initialize("",constructDateTime(3).c_str());
@@ -1551,276 +1893,3 @@ class myInsightScreen
         }
 
 };
-
-class myMenuScreen
-{
-    private:
-        bool initialized = false; // track if the screen has been initialized
-        statusMessage GPS_status;
-        statusMessage loggingStatusMessage;
-        statusMessage date;
-        button M3screenButton;
-        button InsightScreenButton;
-        button logButton;
-        button menuButton;
-    public:
-        void initialize()
-        {
-            u8g2.clearBuffer();
-            GPS_status.y0 = 8;
-            GPS_status.initialize("GPS: ","Disconnected");
-            loggingStatusMessage.y0 = 8;
-            loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
-            loggingStatusMessage.offsetStatus(2);
-            loggingStatusMessage.initialize("LOG:","sdErr");
-            date.y0 = 8;
-            date.x0 = loggingStatusMessage.xEnd() + 5;
-            date.initialize("",constructDateTime(3).c_str());
-            M3screenButton.x0 = 10;
-            M3screenButton.y0 = 30;
-            M3screenButton.setText("M3 Screen");
-            M3screenButton.initalize();
-            //M3screenButton.assignAction();
-            logButton.x0 = 190;
-            logButton.y0 = 120;
-            logButton.setText("LOG");
-            logButton.initalize();
-            logButton.assignAction(&changeLogging_state);
-            menuButton.x0 = 20;
-            menuButton.y0 = 120;
-            menuButton.setText("MENU");
-            menuButton.initalize();
-            u8g2.sendBuffer();
-            initialized = true;
-        }
-        
-        void display()
-        {
-            if(initialized) // check if we have been initialized
-            {
-                updateRequest = false;
-                tap.detect();
-                logButton.read();
-                menuButton.read();
-                tachometer.display(engRPM);
-                GPS_status.displayGPS_status();
-                loggingStatusMessage.displayLog_status();
-                date.displayDate();
-                speed.display(gpsSpeed);
-                xAcel.display(xAccel/10); // display acceleration in 10ths of a G
-                yAcel.display(yAccel/10);
-                lat.display(latitude);
-                lon.display(longitude);
-                
-                
-                //speed.updateArea();
-                if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
-                {
-                    u8g2.sendBuffer();
-                    lastDisplayUpdate = millis();
-                }
-            }
-            else // initialize the display
-            {
-                initialize();
-            }
-        }
-
-};
-void initializeMenuScreen();
-void initializeEaganM3_Screen()
-{
-    u8g2.clearBuffer();
-    
-    GPS_status.y0 = 8;
-    GPS_status.initialize("GPS: ","Disconnected");
-    loggingStatusMessage.y0 = 8;
-    loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
-    loggingStatusMessage.offsetStatus(2);
-    loggingStatusMessage.initialize("LOG:","sdErr");
-    date.y0 = 8;
-    date.x0 = loggingStatusMessage.xEnd() + 5;
-    date.initialize("",constructDateTime(3).c_str());
-    //boxGauge tachometer;
-    tachometer.yStart = 12;
-    tachometer.redLine = 7500;
-    tachometer.max = 8500;
-    tachometer.cutoff = 2000;
-    //u8g2.print("gps not functional");
-    tachometer.drawBoxGauge(engRPM);
-    //digitalGauge speed;
-    strcpy(speed.printFormat,"%3.0f\0");
-    speed.initialize(88);
-    //digitalGauge xAcel;
-    xAcel.maxVal = -99.0;
-    xAcel.x0 = speed.xEnd();
-    //xAcel.y0 = 120; 
-    strcpy(xAcel.unitText,"xgs\0");
-    strcpy(xAcel.printFormat,"%+2.0f\0");
-    xAcel.unitFont = u8g2_font_t0_12_tf;
-    xAcel.unitLocation(1,10);
-    xAcel.initialize(99);
-    //digitalGauge yAcel;
-    yAcel.maxVal = -99;
-    strcpy(yAcel.printFormat,"%+2.0f\0");
-    yAcel.x0 = xAcel.xEnd();
-    strcpy(yAcel.unitText,"ygs\0");
-    yAcel.unitFont = u8g2_font_t0_12_tf;
-    yAcel.unitLocation(1,10);
-    yAcel.initialize(99);
-    lat.y0 = speed.yEndBottom() + 15;
-    lat.digitFont = u8g2_font_6x12_mn;
-    lat.unitFont = u8g2_font_5x7_tr;
-    strcpy(lat.unitText,"*\0");
-    strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
-    lat.maxVal = -100.1234;
-    lat.initialize(-100.1234);
-    lon.y0 = speed.yEndBottom() + 15;
-    lon.digitFont = u8g2_font_6x12_mn;
-    lon.unitFont = u8g2_font_5x7_tr;
-    lon.x0 = lat.xEnd() + 30;
-    strcpy(lon.unitText,"*\0");
-    strcpy(lon.printFormat,"%6.4f\0");
-    lon.maxVal = -100.1234;
-    lon.initialize(-100.1234);
-    logButton.x0 = 190;
-    logButton.y0 = 120;
-    logButton.setText("LOG");
-    logButton.initalize();
-    logButton.assignAction(&changeLogging_state);
-    menuButton.x0 = 20;
-    menuButton.y0 = 120;
-    menuButton.setText("MENU");
-    menuButton.initalize();
-    menuButton.assignAction(&initializeMenuScreen);
-    u8g2.sendBuffer();
-    screenPointer = &EaganM3_Screen; // change the screen pointer to display the M3screen now
-}
-void EaganM3_Screen()
-{
-    // updateRequest = false; // now in the main display screen function
-    // tap.detect();
-    logButton.read();
-    
-    tachometer.display(engRPM);
-    GPS_status.displayGPS_status();
-    loggingStatusMessage.displayLog_status();
-    date.displayDate();
-    speed.display(gpsSpeed);
-    xAcel.display(xAccel/10); // display acceleration in 10ths of a G
-    yAcel.display(yAccel/10);
-    lat.display(latitude);
-    lon.display(longitude);
-    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the m3 screen function will run where it left off
-    
-    //speed.updateArea();
-    // if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
-    // {
-    // u8g2.sendBuffer();
-    // lastDisplayUpdate = millis();
-    // }
-}
-
-button M3ScreenButton;
-button scRacingScreenButton;
-void initializeMenuScreen()
-{
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-    u8g2.drawStr(32,18,"Menu");
-    u8g2.drawLine(0,19,240,19);
-    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-    M3ScreenButton.x0 = 10;
-    M3ScreenButton.y0 = 40;
-    M3ScreenButton.setText("M3 Screen");
-    M3ScreenButton.initalize();
-    M3ScreenButton.assignAction(&initializeEaganM3_Screen);
-    scRacingScreenButton.x0 = 10;
-    scRacingScreenButton.y0 = 80;
-    scRacingScreenButton.setText("scRacing Screen");
-    scRacingScreenButton.initalize();
-    scRacingScreenButton.assignAction(&initializeBakerFSAEscreen);
-    // u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-    // u8g2.drawStr(0,40,"Device Settings");
-    // u8g2.drawStr(0,60,"Option 2");
-    // u8g2.drawStr(0,80,"Acceleration Tests");
-    u8g2.sendBuffer();
-    // u8g2.setDrawColor(1); // reset the draw color back to the default
-    screenPointer = &menuScreen; // switch to the menu screen from now on
-}
-void menuScreen()
-{
-    tap.detect();
-    M3ScreenButton.read();
-    scRacingScreenButton.read();
-}
-// void menuScreen()
-// {
-//     screenPointer = &menuScreen; // switch to the menu screen from now on
-//     switch (currentScreen)
-//     {
-//     case menu:
-//         if(updateScreen){
-//             u8g2.clearBuffer();
-//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-//             u8g2.drawStr(32,18,"Menu");
-//             u8g2.drawLine(0,19,240,19);
-//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-//             u8g2.drawStr(0,40,"Device Settings");
-//             u8g2.drawStr(0,60,"Option 2");
-//             u8g2.drawStr(0,80,"Acceleration Tests");
-//             u8g2.sendBuffer();
-//             u8g2.setDrawColor(1); // reset the draw color back to the default
-//             updateScreen = false;
-//         }
-//         p = ts.getPoint();
-//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
-//             modifyPointToScreen();
-//             Serial.print(p.x);
-//             Serial.print(',');
-//             Serial.print(p.y);
-//             Serial.print(',');
-//             Serial.println(p.z);
-//             if(abs(p.y-30) < 10 ){
-//                 currentScreen = settings;
-//                 updateScreen = true;
-//             }
-//         }
-//         break;
-//         case settings:
-//         if(updateScreen){
-//             u8g2.clearBuffer();
-//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-//             u8g2.drawStr(5,18,"<");
-//             u8g2.drawStr(32,18,"Device Settings");
-//             u8g2.drawLine(0,19,240,19);
-//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-//             u8g2.drawStr(0,40,"Calibrate Screen");
-//             u8g2.drawStr(0,60,"Logging Options");
-//             u8g2.drawStr(0,80,"COM Settings");
-//             u8g2.sendBuffer();
-//             u8g2.setDrawColor(1); // reset the draw color back to the default
-//             updateScreen = false;
-//         }
-//         p = ts.getPoint();
-//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
-//             modifyPointToScreen();
-//             Serial.print(p.x);
-//             Serial.print(',');
-//             Serial.print(p.y);
-//             Serial.print(',');
-//             Serial.println(p.z);
-//             if(abs(p.y-30) < 10 ){ //
-//                 currentScreen = settings;
-//                 updateScreen = true;
-//             }
-//              if(abs(p.y-5) < 8 ){ //
-//                 currentScreen = menu;
-//                 updateScreen = true;
-//             }
-//         }
-//         break;
-//     }
-// }

@@ -16,6 +16,7 @@ void initializeBakerFSAEscreen();
 void BakerFSAEscreen();
 //class performanceTestScreen
 
+void initializeMenuScreen();
 void initializeEaganM3_Screen();
 void EaganM3_Screen();
 void displayScreen();
