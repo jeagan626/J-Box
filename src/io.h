@@ -7,4 +7,5 @@ const int tpsPin = A15;
 
 void initializeIO();
 void readIO();
+void readTach();
 #endif
