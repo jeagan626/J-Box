@@ -81,14 +81,14 @@ void readTach()
     // Serial.print("  index:");
     // Serial.println(i);
   }
-  Serial.println(pulseSum);
+  //Serial.println(pulseSum);
   interrupts();
   pulseDeltaAvg = pulseSum / (numPulseDeltas); 
-  Serial.println(numPulseDeltas);
+  //Serial.println(numPulseDeltas);
   pulseSum = 0;
-  Serial.println(pulseDeltaAvg);
+  //Serial.println(pulseDeltaAvg);
   int newtachFreq = 1000000/pulseDeltaAvg;
-  if (abs(newtachFreq - tachFreq) <= 2){ // if the diffrence between the frequencies is small
+  if (abs(newtachFreq - tachFreq) <= 1){ // if the diffrence between the frequencies is small
     tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
    }
    else
