@@ -31,14 +31,15 @@ void pulseTally()
   interrupts();
 }
 
-// int *ecuData[] = 
-// {&vehicleSpeed,&engRPM,
-// &throttlePosition,&ecuMAP, // to do make this more modular since variables passed change
-// &fuelInjectionPulseWidth,&AirFuelRatio,
-// &intakeAirTemp,&knockValue};
+int *ecuData[] = 
+{&hybridBatteryVoltage,&engineLoad,
+&hybridBatteryCurrent,&intakeAirTemp, // to do make this more modular since variables passed change
+&hybridBatteryTemp,&ecuMAP,
+&hybridBatteryCharge,&ecuAFR};
 #define ecuNUMprams 8
 const int oilPressSensorPin = A18;
-
+const int tachPin = A13;
+const int tpsPin = A15;
 float OilPressureConvert(int ADCval);
 float FuelPressureConvert(int ADCval);
 float TurbinePressureConvert(int ADCval);
@@ -54,26 +55,32 @@ void initializeIO()
     pinMode(oilPressSensorPin,INPUT);
     pinMode(32,INPUT);
     attachInterrupt(32,tachPulseEvent,FALLING);
+    pinMode(0,INPUT);
     Serial1.begin(9600);
 
 }
 
+void extractSerialData();
 void readIO()
 {
     oilPressure = OilPressureConvert(analogRead(oilPressSensorPin));
     readTach();
+    throttlePosition = map(analogRead(tpsPin),110,920,0,99);
+    //extractSerialData();
 }
 
 void readTach()
 {
   unsigned long pulseDeltaAvg = 0;
   noInterrupts();
-  uint8_t numPulseDeltas = 0;
+  uint8_t numPulseDeltas = 0; // keep track of how many valid pulses deltas were found
   for(uint8_t i = 1; i < numPulses; i++)
   {
-    unsigned long pulseDelta = abs(pulseTime[i] - pulseTime[i-1]); // find the diffrence in time between the two pulses
+    unsigned long pulseDelta = pulseTime[i] - pulseTime[i-1]; // find the diffrence in time between the two pulses
     //Serial.println(pulseDelta);
-    if(pulseDelta > 1000000 ){continue;} // go on this is garbage} //4,294,867,297 pulse delta shows up from time to time
+    if(pulseDelta > 10000000 ){continue;} //4,294,867,297 pulse delta shows up from time to time and is a garbage value
+    // if we find it just ignore it by going to the next iteration of the loop
+    // the pulse delta should never be greater than 10 seconds
     //lastPulseDelta = pulseDelta;
     pulseSum = pulseDelta + pulseSum; // add the pulse delta to the running average
     numPulseDeltas++; // keep track of the number of deltas added to the sum so we can calculate an accurate average later
@@ -177,7 +184,7 @@ float getFmuGain(float boostPressure, float fuelPressure)
   }
 }
 
-void extractSerialData()
+void extractSerialData() // extracts data from the serial data stream from the obdii C&C
 {
   #define maxBufferSz 120
   #define maxDataElements 16
@@ -190,7 +197,7 @@ void extractSerialData()
     uint8_t bufferIndex = 0;
     uint8_t dataIndex = 0;
     int extractedData[maxDataElements];
-    //Serial.println(readBuffer);
+    Serial.println(readBuffer);
     while(bufferSize > bufferIndex)
     {
       if(readBuffer[bufferIndex] == ',') // if we find a comma
@@ -233,11 +240,11 @@ void extractSerialData()
       // we've got good data so now save it to the appropriate variables
       for(dataIndex = 0; dataIndex < ecuNUMprams; dataIndex++ )
       {
-        //*ecuData[dataIndex] = extractedData[dataIndex];
+        *ecuData[dataIndex] = extractedData[dataIndex];
         // *ecuData points to the individual ecu paramater variables
         // in the exact order they are relayed over serial
         // so simply copy these extracted data blocks sequentially to the variables refrenced in ecuData
-        //Serial.println(*ecuData[dataIndex]); // print the extracted data to the console for debugging
+        Serial.println(*ecuData[dataIndex]); // print the extracted data to the console for debugging
       }
     }
     //writeData();

@@ -139,7 +139,7 @@ bool initializeLog()
   dataFile.print("\n"); // start another line
   dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
   dataFile.print("\n\n"); // start two lines down
-  dataFile.println("Time,Lat,Long,RPM,Speed,Xacel,Yacel");
+  dataFile.println("Time,Lat,Long,RPM,Speed,TPS,Xacel,Yacel");
   dataFile.close();
   return(true);
 }
@@ -167,6 +167,8 @@ void logData()
     dataFile.print(',');
     dataFile.print(gpsSpeed);
     dataFile.print(',');
+    dataFile.print(throttlePosition);
+    dataFile.print(',');
     dataFile.print(xAccel);
     dataFile.print(',');
     dataFile.print(yAccel);
@@ -180,3 +182,12 @@ void logData()
     loggingStatus = loggingOff; // set the status to off
   }
 }
+
+// Idea: have logging functions implemented like screens. There can be a log function pointer that log data calls
+// this pointer points to an initialization function that prepares the directory and writes the header text
+// then this function changes the pointer to the appropriate log function that writes the values to the file
+// to stop this a function is pointed to that does nothing
+// then logData() is called the same way as displayScreen()
+// also consider passing a pointer to the log variables and writing the filewithin a for loop for cleaner code
+// also maybe preparing a string and just writing that would be more time efficent
+// although logging does not seem to consume much processor time

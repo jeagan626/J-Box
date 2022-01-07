@@ -33,6 +33,7 @@ void setup() {
 }
 
 void loop() {
+  extractSerialData();
   if(lastLogEntry > 50)
   {
     readIO();

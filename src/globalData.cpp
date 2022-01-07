@@ -9,6 +9,13 @@ int knockValue = 0;
 int maxKnockValue = 0;
 int AirFuelRatio = 0;
 
+
+int hybridBatteryVoltage = 0;
+int engineLoad = 0;
+int hybridBatteryCurrent = 0;
+int hybridBatteryTemp = 0;
+int hybridBatteryCharge = 0;
+int ecuAFR = 0;
 int rpmPerPulse = 20;
 
 bool loggingActive = false;

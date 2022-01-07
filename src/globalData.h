@@ -13,6 +13,16 @@ extern int knockValue;
 extern int maxKnockValue;
 extern int AirFuelRatio;
 
+extern int hybridBatteryVoltage;
+extern int engineLoad;
+extern int hybridBatteryCurrent;
+extern int hybridBatteryTemp;
+extern int hybridBatteryCharge;
+extern int ecuAFR;
+
+
+
+
 extern int rpmPerPulse;
 extern bool loggingActive;
 extern bool loggingSuccessful;
