@@ -139,7 +139,7 @@ bool initializeLog()
   dataFile.print("\n"); // start another line
   dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
   dataFile.print("\n\n"); // start two lines down
-  dataFile.println("Time,Lat,Long,RPM,Speed,TPS,Xacel,Yacel");
+  dataFile.println("Time,Lat,Long,RPM,Speed,TPS,Xacel,Yacel,HybridVoltage,EngineLoad,ecuMAP,HybridCurrent,BatteryTemp");
   dataFile.close();
   return(true);
 }
@@ -172,6 +172,16 @@ void logData()
     dataFile.print(xAccel);
     dataFile.print(',');
     dataFile.print(yAccel);
+    dataFile.print(',');
+    dataFile.print(hybridBatteryVoltage);
+    dataFile.print(',');
+    dataFile.print(engineLoad);
+    dataFile.print(',');
+    dataFile.print(ecuMAP);
+    dataFile.print(',');
+    dataFile.print(hybridBatteryCurrent);
+    dataFile.print(',');
+    dataFile.print(hybridBatteryTemp);
     dataFile.print('\n');
     dataFile.close();
   }
