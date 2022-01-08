@@ -34,13 +34,15 @@ void setup() {
 
 void loop() {
   extractSerialData();
+  updateGPS();
   if(lastLogEntry > 50)
   {
+    
     readIO();
     logData();
     lastLogEntry = 0;
   }
-  updateGPS();
+  
   //Serial.println(displayUpdateTime);
 
 //EaganM3_Screen();

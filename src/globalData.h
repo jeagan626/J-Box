@@ -14,7 +14,7 @@ extern int maxKnockValue;
 extern int AirFuelRatio;
 
 extern int hybridBatteryVoltage;
-extern int engineLoad;
+extern int engLoad;
 extern int hybridBatteryCurrent;
 extern int hybridBatteryTemp;
 extern int hybridBatteryCharge;

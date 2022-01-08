@@ -11,7 +11,7 @@ int AirFuelRatio = 0;
 
 
 int hybridBatteryVoltage = 0;
-int engineLoad = 0;
+int engLoad = 0;
 int hybridBatteryCurrent = 0;
 int hybridBatteryTemp = 0;
 int hybridBatteryCharge = 0;

@@ -1174,10 +1174,11 @@ class digitalGauge
           return; // don't do anything if no updates need to be made to save time
         }
         lastVal = val; // otherwise save the latest value;
+        if(val > maxVal)
         updateRequest = true;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
-        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        char digitString [16] = "Error"; // make it error so its ovbious if theres a problem
         sprintf(digitString,printFormat,val); // generate a string with the digits in it
         #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
         #define digit_x0 x0 + maxDigitWidth - currentWidth // this always places the digit end in the same location
@@ -1188,10 +1189,11 @@ class digitalGauge
      void initializeFormatting() // perform the standard initialization calculations for formatting
     {
         u8g2.setFont(digitFont);
-        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        char digitString [16] = "Error"; // make it error so its ovbious if theres a problem
         sprintf(digitString,printFormat,maxVal); // generate a string with the digits in it
         maxDigitWidth = u8g2.getStrWidth(digitString);
-        digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        //digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        digitHeight = u8g2.getAscent(); // digits dont tend to extend below - u8g2.getDescent(); // the area the digit can occupy
         digit_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
         u8g2.setFont(unitFont);
         x0unit = x0 + maxDigitWidth + xUnitOffset;
@@ -1563,6 +1565,7 @@ void EaganM3_Screen()
 digitalGauge oilPressGauge;
 digitalGauge AFR;
 digitalGauge TPSval;
+digitalGauge BatteryCurrent;
 
 void insightScreen()
 {
@@ -1576,11 +1579,12 @@ void insightScreen()
     speed.display(gpsSpeed);
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
+    BatteryCurrent.display((hybridBatteryCurrent/100));
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
     yAcel.display(yAccel/10);
     //lat.display(latitude);
     //lon.display(longitude);
-    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the m3 screen function will run where it left off
+    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the current screen function will run where it left off
     
     //speed.updateArea();
 }
@@ -1609,6 +1613,7 @@ void initializeInsightScreen()
     yAcel.initializeMediumGauge(xAcel.xEnd(),60,-99,"%+2.0f","ygs");
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
+    BatteryCurrent.initializeMediumGauge(TPSval.xEnd()+5,92,-140,"%+2.0f","A");
     // xAcel.maxVal = -99.0;
     // xAcel.x0 = speed.xEnd();
     // xAcel.y0 = 74;

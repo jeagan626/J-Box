@@ -3,7 +3,7 @@
 
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
-const uint8_t numPulses = 10;
+const uint8_t numPulses = 5;
 volatile unsigned long pulseTime[numPulses] = {0}; // keep track of the last 10 pulse times
 volatile uint8_t pulseIndex = 0; // used to record to pulsetime
 unsigned int pulseDeltaTimes[numPulses]; // keep track of the last 10 pulse times
@@ -32,7 +32,7 @@ void pulseTally()
 }
 
 int *ecuData[] = 
-{&hybridBatteryVoltage,&engineLoad,
+{&hybridBatteryVoltage,&engLoad,
 &hybridBatteryCurrent,&intakeAirTemp, // to do make this more modular since variables passed change
 &hybridBatteryTemp,&ecuMAP,
 &hybridBatteryCharge,&ecuAFR};
@@ -198,7 +198,7 @@ void extractSerialData() // extracts data from the serial data stream from the o
     uint8_t bufferIndex = 0;
     uint8_t dataIndex = 0;
     int extractedData[maxDataElements];
-    Serial.println(readBuffer);
+    //Serial.println(readBuffer);
     while(bufferSize > bufferIndex)
     {
       if(readBuffer[bufferIndex] == ',') // if we find a comma
@@ -245,7 +245,7 @@ void extractSerialData() // extracts data from the serial data stream from the o
         // *ecuData points to the individual ecu paramater variables
         // in the exact order they are relayed over serial
         // so simply copy these extracted data blocks sequentially to the variables refrenced in ecuData
-        Serial.println(*ecuData[dataIndex]); // print the extracted data to the console for debugging
+        //Serial.println(*ecuData[dataIndex]); // print the extracted data to the console for debugging
       }
     }
     //writeData();

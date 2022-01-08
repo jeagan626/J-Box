@@ -69,7 +69,7 @@ unsigned int rtc_ms()
 // 3 
 String constructDateTime(uint8_t i)
 { 
-  char dateTimeString[24] = "";
+  char dateTimeString[64] = "";
   switch (i)
   {
     case 0:
@@ -105,7 +105,6 @@ void initializeSD(){
         return;
       }
       strcpy(dir,"/Datalogs/"); // start the directory back at datlogs to avoid funky directories
-      strcpy(logFile,"Log"); // reset the logfile name
       Serial.println(dir);
       strcat(dir,constructDateTime(0).c_str()); //add the current date MM-YYYY to the dir to make a dated folder within "datalogs"
       Serial.println(dir);
@@ -122,10 +121,16 @@ bool initializeLog()
   if(loggingStatus == sdError){ // if theres an error
     return(false);
   }
+  char oldLogFile [13] = "Log"; // initialize a string to store the name of the old log file
+  strcpy(oldLogFile,logFile); // save the name of the old logfile
+  strcpy(logFile,"Log"); // reset the logfile name
   strcat(logFile,constructDateTime(1).c_str()); // add the current time to the file name
   Serial.println(logFile);
   strcat(logFile,".csv");// tack on the .txt so we can open it later
   Serial.println(logFile);
+  Serial.print("oldLogFile: ");
+  Serial.println(oldLogFile);
+  
   strcpy(logFileDir,dir);//add the current directory to the log file directory string
   Serial.println(logFileDir);
   strcat(logFileDir,"/");//add the / so we can locate our file within the current directory
@@ -135,12 +140,25 @@ bool initializeLog()
   if(!dataFile.open(logFileDir, FILE_WRITE)){
     loggingStatus = fileError;
     return(false);
-  };
-  dataFile.print("\n"); // start another line
-  dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
-  dataFile.print("\n\n"); // start two lines down
-  dataFile.println("Time,Lat,Long,RPM,Speed,TPS,Xacel,Yacel,HybridVoltage,EngineLoad,ecuMAP,HybridCurrent,BatteryTemp");
-  dataFile.close();
+  }
+  if(strcmp(logFile,oldLogFile) != 0)
+  {
+    // if the two filesnames are not the same
+    // create a header file for the new log
+    Serial.println("writing Header text...");
+    dataFile.print("\n"); // start another line
+    dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
+    dataFile.print("\n\n"); // start two lines down
+    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,EngineLoad,ecuMAP,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp");
+              /* Preview of the data writing process
+              char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
+              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
+              constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
+              xAccel,yAccel,engRPM,throttlePosition,engLoad,ecuMAP,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+              dataFile.print(dataString);
+              //*/
+    dataFile.close();
+  }
   return(true);
 }
 void logData()
@@ -157,32 +175,14 @@ void logData()
       newLog = false; // the log has been made
     }
     dataFile.open(logFileDir, FILE_WRITE);
-    dataFile.print(constructDateTime(4).c_str());
-    dataFile.print(',');
-    dataFile.print(latitude,6); // google maps uses 6 decimal places of precision; lets do the same
-    dataFile.print(',');
-    dataFile.print(longitude,6); // google maps uses 6 decimal places of precision; lets do the same
-    dataFile.print(',');
-    dataFile.print(engRPM);
-    dataFile.print(',');
-    dataFile.print(gpsSpeed);
-    dataFile.print(',');
-    dataFile.print(throttlePosition);
-    dataFile.print(',');
-    dataFile.print(xAccel);
-    dataFile.print(',');
-    dataFile.print(yAccel);
-    dataFile.print(',');
-    dataFile.print(hybridBatteryVoltage);
-    dataFile.print(',');
-    dataFile.print(engineLoad);
-    dataFile.print(',');
-    dataFile.print(ecuMAP);
-    dataFile.print(',');
-    dataFile.print(hybridBatteryCurrent);
-    dataFile.print(',');
-    dataFile.print(hybridBatteryTemp);
-    dataFile.print('\n');
+
+    ///* Preview of the data writing process
+    char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
+    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
+    constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
+    xAccel,yAccel,engRPM,throttlePosition,engLoad,ecuMAP,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+    dataFile.print(dataString);
+    //*/
     dataFile.close();
   }
   else
