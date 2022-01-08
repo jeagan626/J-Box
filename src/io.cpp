@@ -56,7 +56,8 @@ void initializeIO()
     pinMode(32,INPUT);
     attachInterrupt(32,tachPulseEvent,FALLING);
     pinMode(0,INPUT);
-    Serial1.begin(9600);
+    //Serial1.begin(9600); // for old OBii C&C software
+    Serial1.begin(38400,SERIAL_8N1_RXINV); // for new obdII C&C software
 
 }
 
