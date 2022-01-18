@@ -31,15 +31,24 @@ void pulseTally()
   interrupts();
 }
 
-int *ecuData[] = 
-{&hybridBatteryVoltage,&engLoad,
-&hybridBatteryCurrent,&intakeAirTemp, // to do make this more modular since variables passed change
+
+const int ecuNUMprams = 8;
+int *ecuData[ecuNUMprams] = // Parameters pulled from OBDII C&C (must be in same order as device)
+{&hybridBatteryVoltage,&knockValue,
+&hybridBatteryCurrent,&intakeAirTemp,
 &hybridBatteryTemp,&ecuMAP,
 &hybridBatteryCharge,&ecuAFR};
-#define ecuNUMprams 8
-const int oilPressSensorPin = A18;
+
+const int ecuMapPin = A12;
 const int tachPin = A13;
+const int lambdaPin = A14;
 const int tpsPin = A15;
+const int mapPin = A16;
+const int iatPin = A17;
+const int oilPressSensorPin = A18;
+const int fuelPressSensorPin = A19;
+
+
 float OilPressureConvert(int ADCval);
 float FuelPressureConvert(int ADCval);
 float TurbinePressureConvert(int ADCval);
@@ -50,18 +59,22 @@ float getFmuGain(float boostPressure, float fuelPressure);
 
 void initializeIO()
 {
+    pinMode(ecuMapPin,INPUT);
     pinMode(tachPin,INPUT);
+    pinMode(lambdaPin,INPUT);
     pinMode(tpsPin,INPUT);
+    pinMode(mapPin,INPUT);
+    pinMode(iatPin,INPUT);
     pinMode(oilPressSensorPin,INPUT);
-    pinMode(32,INPUT);
-    attachInterrupt(32,tachPulseEvent,FALLING);
+    pinMode(fuelPressSensorPin,INPUT);
+    pinMode(tachPin,INPUT);
+    attachInterrupt(tachPin,tachPulseEvent,FALLING);
     pinMode(0,INPUT);
     //Serial1.begin(9600); // for old OBii C&C software
     Serial1.begin(38400,SERIAL_8N1_RXINV); // for new obdII C&C software
 
 }
 
-void extractSerialData();
 void readIO()
 {
     oilPressure = OilPressureConvert(analogRead(oilPressSensorPin));
@@ -70,18 +83,42 @@ void readIO()
     //extractSerialData();
 }
 
+uint8_t lastPulseIndex = 0;
+unsigned long stalePulseTime = 1000000; // default to one second
 void readTach()
 {
   unsigned long pulseDeltaAvg = 0;
   noInterrupts();
+  if(pulseIndex == lastPulseIndex)
+  {
+    // if the pulse index has not changed
+    unsigned long newStalePulseTime = micros() - pulseTime[lastPulseIndex]; // record the amount of time that has passed since this last pulse
+    if(newStalePulseTime > stalePulseTime)
+    {
+      // and the amount of time that has passed since this last pulse is greater than 1 second and then keeps increasing
+      stalePulseTime = newStalePulseTime; // note the lastest time diffrence
+      tachFreq = 0; // it seems we have come across a frequency less than 1hz
+      engRPM = 0; // the engine rpm must also be 0
+      // we are done here the tach frequency and engrpm are 0
+      interrupts(); // turn the interupts back on
+      return; // exit the function
+    }
+    // since the stale pulse time did not increase from the last recorded stale pulse time
+    stalePulseTime = 1000000; // reset the default to one second
+  }
+  lastPulseIndex = pulseIndex; // record the current pulse index so we can test the conditions above
+
+
   uint8_t numPulseDeltas = 0; // keep track of how many valid pulses deltas were found
   for(uint8_t i = 1; i < numPulses; i++)
   {
+    //noInterrupts(); // we may only need to turn off interupts to read the individual deltas
     unsigned long pulseDelta = pulseTime[i] - pulseTime[i-1]; // find the diffrence in time between the two pulses
     //Serial.println(pulseDelta);
+    //interrupts();
     if(pulseDelta > 10000000 ){continue;} //4,294,867,297 pulse delta shows up from time to time and is a garbage value
     // if we find it just ignore it by going to the next iteration of the loop
-    // the pulse delta should never be greater than 10 seconds
+    // the pulse delta should never be greater than 10 seconds here
     //lastPulseDelta = pulseDelta;
     pulseSum = pulseDelta + pulseSum; // add the pulse delta to the running average
     numPulseDeltas++; // keep track of the number of deltas added to the sum so we can calculate an accurate average later
@@ -91,6 +128,13 @@ void readTach()
   }
   //Serial.println(pulseSum);
   interrupts();
+  if(numPulseDeltas == 0)
+  {
+    // if we find that that the pulse delta 
+    tachFreq = 0;
+    engRPM = 0;
+    return;
+  }
   pulseDeltaAvg = pulseSum / (numPulseDeltas); 
   //Serial.println(numPulseDeltas);
   pulseSum = 0;
@@ -106,7 +150,6 @@ void readTach()
   //Serial.println(tachFreq);
   engRPM = tachFreq * rpmPerPulse;
 }
-
 
 float OilPressureConvert(int ADCval)
 {

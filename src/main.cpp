@@ -5,11 +5,14 @@
 #include <U8g2lib.h> 
 #include "globalData.h"
 
-elapsedMillis pulseUpdate;
-elapsedMillis displayUpdateTime;
+unsigned int gpsUpdateTime = 0;
+unsigned int serialExtractTime = 0;
+unsigned int ioReadTime = 0;
+unsigned int dataLogTime = 0;
+unsigned int displayUpdateTime = 0;
+elapsedMicros actionTime;
+elapsedMicros loopTime;
 elapsedMillis lastLogEntry;
-IntervalTimer checkPulses;
-
 
 void setup() {
   // digitalWrite(LED_BUILTIN, HIGH);
@@ -18,37 +21,52 @@ void setup() {
   // delay(100);
   initializeDisplay();
   setSyncProvider(getTeensy3Time);
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("test");
-  //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
   initializeIO();
   initializeGPS();
   initializeSD();
-  
-  //checkPulses.begin(pulseTally,50000);
-  //initializeEaganM3_Screen();
-  //gpsSpeed = 0;
 }
 
 void loop() {
+  loopTime = 0;
+  actionTime = 0;
   extractSerialData();
+  serialExtractTime = actionTime; // note the time taken to extract the serial data
+  
+  actionTime = 0;
   updateGPS();
-  if(lastLogEntry > 50)
+  gpsUpdateTime = actionTime;
+
+  if(lastLogEntry > 40)
   {
-    
+    actionTime = 0;
     readIO();
+    ioReadTime = actionTime; // note the time taken to extract the serial data
+    
+    actionTime = 0;
     logData();
+    dataLogTime = actionTime;
+    
     lastLogEntry = 0;
   }
   
-  //Serial.println(displayUpdateTime);
-
-//EaganM3_Screen();
-displayScreen();
-//Serial.println(displayUpdateTime);
-displayUpdateTime = 0;
+  actionTime = 0;
+  displayScreen();
+  displayUpdateTime = actionTime;
+  Serial.print(serialExtractTime);
+  Serial.print(',');
+  Serial.print(gpsUpdateTime);
+  Serial.print(',');
+  Serial.print(ioReadTime);
+  Serial.print(',');
+  Serial.print(dataLogTime);
+  Serial.print(',');
+  Serial.print(displayUpdateTime);
+  Serial.print(',');
+  Serial.println(loopTime);
 
 //BakerFSAEscreen();
 

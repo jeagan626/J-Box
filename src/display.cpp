@@ -12,6 +12,7 @@ TLDR:
 
 
 Display performance seems decent in that it takes around 30ms to wite the screen black or white;
+teensy 3.6 can do it in 20ms!!!
 meaning every pixel in the buffer has been changed.
 This also means every call to u8g2.sendBuffer() will take 30ms to complete assuming the buffer contains information that fills up the screen
 or modifies pixels located in the corner of the screen as the full buffer needs to be sent to modify information in the last sections of display ram
@@ -436,7 +437,7 @@ void initializeDisplay()
     u8g2.clearBuffer();
     // u8g2.setFont(u8g2_font_logisoso58_tf);
     // u8g2.drawStr(25,80,"J-Box");
-    u8g2.drawXBM( 80, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
+    u8g2.drawXBM( 40, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
     //u8g2.drawXBM( 0, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
     u8g2.setFont(u8g2_font_courR10_tr);
     u8g2.setFontPosBaseline(); // Set the font position to the bottom
@@ -1169,12 +1170,12 @@ class digitalGauge
           //initialize(val); // initialize the display
           return; // dont do anything more
         }
-        if(lastVal == val)
+        if( abs(((lastVal - val) * 200) / maxVal) < 1) // if the diffrence between the values is less than .5% 
         {
           return; // don't do anything if no updates need to be made to save time
         }
         lastVal = val; // otherwise save the latest value;
-        if(val > maxVal)
+        // if(val > maxVal)
         updateRequest = true;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
@@ -1566,6 +1567,7 @@ digitalGauge oilPressGauge;
 digitalGauge AFR;
 digitalGauge TPSval;
 digitalGauge BatteryCurrent;
+digitalGauge BatteryVoltage;
 
 void insightScreen()
 {
@@ -1580,6 +1582,7 @@ void insightScreen()
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
     BatteryCurrent.display((hybridBatteryCurrent/100));
+    BatteryVoltage.display(hybridBatteryVoltage);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
     yAcel.display(yAccel/10);
     //lat.display(latitude);
@@ -1614,6 +1617,7 @@ void initializeInsightScreen()
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
     BatteryCurrent.initializeMediumGauge(TPSval.xEnd()+5,92,-140,"%+2.0f","A");
+    BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,92,200,"%2.0f","V");
     // xAcel.maxVal = -99.0;
     // xAcel.x0 = speed.xEnd();
     // xAcel.y0 = 74;

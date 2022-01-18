@@ -41,7 +41,7 @@ int initializeGPS()
     int error = 0;
     Wire.begin();
     
-    Wire.setClock(40000);
+    Wire.setClock(400000); // set the I2C bus to the Ublox Maximum of 400khz
     if(myGNSS.begin() == false) //Connect to the Ublox module using Wire port
   {
     GPSconnected = false;

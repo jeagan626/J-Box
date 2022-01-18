@@ -17,7 +17,18 @@ int hybridBatteryTemp = 0;
 int hybridBatteryCharge = 0;
 int ecuAFR = 0;
 int rpmPerPulse = 20;
-
 bool loggingActive = false;
 bool loggingSuccessful = false;
 loggingState loggingStatus = sdError;
+
+// class dataBlock
+// {
+//     public:
+//     dataBlock(int numData = 5)
+//     {
+//         float myData[numData] = {0};
+//     }
+
+
+//     private:
+// }

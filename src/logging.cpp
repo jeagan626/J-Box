@@ -1,7 +1,7 @@
 #include "logging.h"
 #include "gps.h"
 #include "globalData.h"
-char logFile[13] = "Log"; //Start each logfile with "Log"
+char logFile[13] = "log"; //Start each logfile with "Log"
 char dir[64] = "/Datalogs/"; //Store the log files in a folder called "datalogs"
 char logFileDir[77] = " "; // allocate a string to lead to the datalog file we will create
 bool newLog = true;
@@ -77,7 +77,7 @@ String constructDateTime(uint8_t i)
       break;
 
     case 1:
-      sprintf(dateTimeString,"%02i;%02i",hour(),minute());
+      sprintf(dateTimeString,"%02i_%02i",hour(),minute());
       break;
     
     case 2:
@@ -121,9 +121,9 @@ bool initializeLog()
   if(loggingStatus == sdError){ // if theres an error
     return(false);
   }
-  char oldLogFile [13] = "Log"; // initialize a string to store the name of the old log file
+  char oldLogFile [13] = "log"; // initialize a string to store the name of the old log file
   strcpy(oldLogFile,logFile); // save the name of the old logfile
-  strcpy(logFile,"Log"); // reset the logfile name
+  strcpy(logFile,"log"); // reset the logfile name
   strcat(logFile,constructDateTime(1).c_str()); // add the current time to the file name
   Serial.println(logFile);
   strcat(logFile,".csv");// tack on the .txt so we can open it later
@@ -149,12 +149,12 @@ bool initializeLog()
     dataFile.print("\n"); // start another line
     dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
     dataFile.print("\n\n"); // start two lines down
-    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,EngineLoad,ecuMAP,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp");
+    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,ecuMAP,IAT,KNK,ecuAFR,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp");
               /* Preview of the data writing process
               char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
+              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
               constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
-              xAccel,yAccel,engRPM,throttlePosition,engLoad,ecuMAP,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+              xAccel,yAccel,engRPM,throttlePosition,ecuMAP,intakeAirTemp,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
               dataFile.print(dataString);
               //*/
     dataFile.close();
@@ -178,9 +178,9 @@ void logData()
 
     ///* Preview of the data writing process
     char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
+    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
     constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
-    xAccel,yAccel,engRPM,throttlePosition,engLoad,ecuMAP,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+    xAccel,yAccel,engRPM,throttlePosition,ecuMAP,intakeAirTemp,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
     dataFile.print(dataString);
     //*/
     dataFile.close();
