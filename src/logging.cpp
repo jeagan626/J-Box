@@ -10,8 +10,9 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 SdFs SD;
 FsFile dataFile;
-//elapsedMillis milliseconds;
-//unsigned int lastSeconds = 0;
+elapsedMillis milliseconds;
+// IntervalTimer updateMillisecond;
+unsigned int lastSeconds = 0;
 time_t getTeensy3Time()
 {
   return (Teensy3Clock.get() - (8 * 3600)); // Shift the time so it is consistant with PST
@@ -25,6 +26,7 @@ time_t getTeensy3Time()
 //     //free(str); // free the allocated space
 //     return (milisString);
 //   }
+
 unsigned int rtc_ms() 
 {
   // manitou48 example code for getting milisecond values from the teensy
@@ -51,25 +53,30 @@ unsigned int rtc_ms()
         secs = read1;
     }
 	//return(secs*1000 + us/1000);   // ms
-    return(us/1000);   // ms but just the value in between seconds
+  return(us/1000);   // ms but just the value in between seconds
 }
-// void updateMillisecond() // this might not be a good idea since the loop speed may be slow enough to constantly reset miliseconds mid second
-// {
-//   if(second() - lastSeconds > 0) // if one second has passed
-//   {
-//     lastSeconds = second(); // reset the counter
-//     if(milliseconds % 1000 != 0) // check to see if milliseconds has rolled over
-//      {
-//      // if it hasn't just rolled over then reset it
-//       milliseconds = 0;
-//     }
-//   } 
-// }
-
+void millisecondUpdate() // this might not be a good idea since the loop speed may be slow enough to constantly reset miliseconds mid second
+{
+  if(second() - lastSeconds > 0) // if one second has passed
+  {
+    lastSeconds = second(); // reset the counter
+    if(milliseconds % 1000 != 0) // check to see if milliseconds has rolled over
+     {
+     // if it hasn't just rolled over then reset it
+      milliseconds = 0;
+    }
+  } 
+}
+void initializeSysClock()
+{
+  setSyncProvider(getTeensy3Time);
+  //updateMillisecond.begin(millisecondUpdate,500); // update the milisecond to the nearest .5ms
+}
 // 3 
 String constructDateTime(uint8_t i)
 { 
   char dateTimeString[64] = "";
+
   switch (i)
   {
     case 0:
@@ -85,11 +92,13 @@ String constructDateTime(uint8_t i)
       break;
     
     case 3:
-      sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),rtc_ms() / 10);
+      //sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),rtc_ms() / 10);
+      sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),milliseconds / 10);
       break;
 
     case 4:
-      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),rtc_ms());
+      //sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),rtc_ms());
+      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),milliseconds);
       break;
 
     case 5:
@@ -149,12 +158,17 @@ bool initializeLog()
     dataFile.print("\n"); // start another line
     dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
     dataFile.print("\n\n"); // start two lines down
-    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,ecuMAP,IAT,KNK,ecuAFR,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp");
+    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,ecuMAP,rawEcuMapReading,MAP,IAT,rawEcuIatReading,KNK,ecuAFR,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp,serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,loopTime");
               /* Preview of the data writing process
               char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
-              constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
-              xAccel,yAccel,engRPM,throttlePosition,ecuMAP,intakeAirTemp,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%u,%u,%u,%u,%u,%u\n",
+              constructDateTime(4).c_str(),latitude,longitude,
+              gpsSpeed,xAccel,yAccel,
+              engRPM,throttlePosition,ecuMAP,
+              rawEcuMapReading,MAP,intakeAirTemp,
+              rawEcuIatReading,knockValue,ecuAFR,
+              hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp,
+              serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
               dataFile.print(dataString);
               //*/
     dataFile.close();
@@ -175,12 +189,23 @@ void logData()
       newLog = false; // the log has been made
     }
     dataFile.open(logFileDir, FILE_WRITE);
-
-    ///* Preview of the data writing process
+   ///* Preview of the data writing process
+              char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
+              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%u,%u,%u,%u,%u,%u\n",
+              constructDateTime(4).c_str(),latitude,longitude,
+              gpsSpeed,xAccel,yAccel,
+              engRPM,throttlePosition,ecuMAP,
+              rawEcuMapReading,MAP,intakeAirTemp,
+              rawEcuIatReading,knockValue,ecuAFR,
+              hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp,
+              serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
+              dataFile.print(dataString);
+              //*/
+    /* Preview of the data writing process
     char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
+    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
     constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
-    xAccel,yAccel,engRPM,throttlePosition,ecuMAP,intakeAirTemp,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
+    xAccel,yAccel,engRPM,throttlePosition,ecuMAP,rawEcuMapReading,MAP,intakeAirTemp,rawEcuIatReading,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
     dataFile.print(dataString);
     //*/
     dataFile.close();

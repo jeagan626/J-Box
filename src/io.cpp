@@ -78,6 +78,10 @@ void initializeIO()
 void readIO()
 {
     oilPressure = OilPressureConvert(analogRead(oilPressSensorPin));
+    MAP = MAPConvert(analogRead(mapPin));
+    rawEcuMapReading = analogRead(ecuMapPin);
+    rawEcuIatReading = analogRead(iatPin);
+    fuelPressure = FuelPressureConvert(analogRead(fuelPressSensorPin));
     readTach();
     throttlePosition = map(analogRead(tpsPin),110,920,0,99);
     //extractSerialData();

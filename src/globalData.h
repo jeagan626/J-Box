@@ -5,10 +5,10 @@
 // since these values could be derived many ways
 extern int engRPM;
 extern int throttlePosition;
-extern int ecuMAP;
+extern int MAP;
 extern int intakeAirTemp;
 extern int oilPressure;
-extern int fuelPress;
+extern int fuelPressure;
 extern int knockValue;
 extern int maxKnockValue;
 extern int AirFuelRatio;
@@ -19,9 +19,17 @@ extern int hybridBatteryCurrent;
 extern int hybridBatteryTemp;
 extern int hybridBatteryCharge;
 extern int ecuAFR;
+extern int ecuMAP;
 
+extern int rawEcuMapReading;
+extern int rawEcuIatReading;
 
-
+extern unsigned int gpsUpdateTime;
+extern unsigned int serialExtractTime;
+extern unsigned int ioReadTime;
+extern unsigned int dataLogTime;
+extern unsigned int displayUpdateTime;
+extern unsigned int mainLoopTime;
 
 extern int rpmPerPulse;
 extern bool loggingActive;

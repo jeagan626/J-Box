@@ -5,15 +5,11 @@
 #include <U8g2lib.h> 
 #include "globalData.h"
 
-unsigned int gpsUpdateTime = 0;
-unsigned int serialExtractTime = 0;
-unsigned int ioReadTime = 0;
-unsigned int dataLogTime = 0;
-unsigned int displayUpdateTime = 0;
 elapsedMicros actionTime;
 elapsedMicros loopTime;
 elapsedMillis lastLogEntry;
-
+//elapsedMillis milliseconds;
+IntervalTimer updateMillisecond;
 void setup() {
   // digitalWrite(LED_BUILTIN, HIGH);
   // delay(100);
@@ -21,6 +17,8 @@ void setup() {
   // delay(100);
   initializeDisplay();
   setSyncProvider(getTeensy3Time);
+  updateMillisecond.begin(millisecondUpdate,500); // update the milisecond to the nearest .5ms
+  //void initializeSysClock();
   Serial.begin(115200);
   Serial.println("test");
   // Serial.println(modf(10.51234512,1.0);
@@ -31,6 +29,7 @@ void setup() {
 }
 
 void loop() {
+  mainLoopTime = loopTime;
   loopTime = 0;
   actionTime = 0;
   extractSerialData();

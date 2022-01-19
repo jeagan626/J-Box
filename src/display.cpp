@@ -1566,6 +1566,7 @@ void EaganM3_Screen()
 digitalGauge oilPressGauge;
 digitalGauge AFR;
 digitalGauge TPSval;
+digitalGauge MAPval;
 digitalGauge BatteryCurrent;
 digitalGauge BatteryVoltage;
 
@@ -1581,6 +1582,7 @@ void insightScreen()
     speed.display(gpsSpeed);
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
+    MAPval.display(MAP);
     BatteryCurrent.display((hybridBatteryCurrent/100));
     BatteryVoltage.display(hybridBatteryVoltage);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
@@ -1616,8 +1618,9 @@ void initializeInsightScreen()
     yAcel.initializeMediumGauge(xAcel.xEnd(),60,-99,"%+2.0f","ygs");
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
-    BatteryCurrent.initializeMediumGauge(TPSval.xEnd()+5,92,-140,"%+2.0f","A");
-    BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,92,200,"%2.0f","V");
+    MAPval.initializeMediumGauge(TPSval.xEnd()+5,92,300,"%2.0f","kPa");
+    BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
+    BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
     // xAcel.maxVal = -99.0;
     // xAcel.x0 = speed.xEnd();
     // xAcel.y0 = 74;
