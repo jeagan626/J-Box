@@ -246,8 +246,8 @@ class touchEvent
     public:
     int x = 0;
     int y = 0;
-    uint8_t minimumDuration = 30;
-    uint8_t staleDuration = 20; // rework this method of debouncing or de
+    uint8_t minimumDuration = 50;
+    uint8_t staleDuration = 5; // rework this method of debouncing or de
     int duration = 0;
     int minPressure = 10;
     int maxPressure = 255;
@@ -1580,6 +1580,7 @@ void insightScreen()
     loggingStatusMessage.displayLog_status();
     date.displayDate();
     speed.display(gpsSpeed);
+    AFR.display(ecuAFR/10);
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
     MAPval.display(MAP);
@@ -1614,8 +1615,9 @@ void initializeInsightScreen()
     //strcpy(speed.printFormat,"%3.0f\0");
     speed.y0 = 74;
     speed.initializeLargeGauge(88);
-    xAcel.initializeMediumGauge(speed.xEnd(),60,-99,"%+2.0f","xgs");
-    yAcel.initializeMediumGauge(xAcel.xEnd(),60,-99,"%+2.0f","ygs");
+    AFR.initializeMediumGauge(speed.xEnd()+5,60,22.0,"%3.1f","AFR");
+    xAcel.initializeMediumGauge(190,50,-99,"%+2.0f","xg");
+    yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg");
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
     MAPval.initializeMediumGauge(TPSval.xEnd()+5,92,300,"%2.0f","kPa");

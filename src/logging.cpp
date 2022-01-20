@@ -158,15 +158,15 @@ bool initializeLog()
     dataFile.print("\n"); // start another line
     dataFile.print(constructDateTime(5)); // print the date and time at the top of the file
     dataFile.print("\n\n"); // start two lines down
-    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,ecuMAP,rawEcuMapReading,MAP,IAT,rawEcuIatReading,KNK,ecuAFR,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp,serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,loopTime");
+    dataFile.println("Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,rawEcuMapReading,MAP,IAT,rawEcuIatReading,KNK,ecuTiming,ecuAFR,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp,serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,loopTime");
               /* Preview of the data writing process
               char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
               sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%u,%u,%u,%u,%u,%u\n",
               constructDateTime(4).c_str(),latitude,longitude,
               gpsSpeed,xAccel,yAccel,
-              engRPM,throttlePosition,ecuMAP,
+              engRPM,throttlePosition,
               rawEcuMapReading,MAP,intakeAirTemp,
-              rawEcuIatReading,knockValue,ecuAFR,
+              rawEcuIatReading,knockValue,ecuTiming,ecuAFR,
               hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp,
               serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
               dataFile.print(dataString);
@@ -194,20 +194,14 @@ void logData()
               sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%u,%u,%u,%u,%u,%u\n",
               constructDateTime(4).c_str(),latitude,longitude,
               gpsSpeed,xAccel,yAccel,
-              engRPM,throttlePosition,ecuMAP,
+              engRPM,throttlePosition,
               rawEcuMapReading,MAP,intakeAirTemp,
-              rawEcuIatReading,knockValue,ecuAFR,
+              rawEcuIatReading,knockValue,ecuTiming,ecuAFR,
               hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp,
               serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
               dataFile.print(dataString);
               //*/
-    /* Preview of the data writing process
-    char dataString [128] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-    sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i\n",
-    constructDateTime(4).c_str(),latitude,longitude,gpsSpeed,
-    xAccel,yAccel,engRPM,throttlePosition,ecuMAP,rawEcuMapReading,MAP,intakeAirTemp,rawEcuIatReading,knockValue,ecuAFR,hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp);
-    dataFile.print(dataString);
-    //*/
+              
     dataFile.close();
   }
   else

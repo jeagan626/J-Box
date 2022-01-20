@@ -21,6 +21,7 @@ extern int hybridBatteryTemp;
 extern int hybridBatteryCharge;
 extern int ecuAFR;
 extern int ecuMAP;
+extern int ecuTiming;
 
 extern int rawEcuMapReading;
 extern int rawEcuIatReading;

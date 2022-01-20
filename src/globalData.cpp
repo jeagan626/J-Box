@@ -17,6 +17,7 @@ int hybridBatteryTemp = 0;
 int hybridBatteryCharge = 0;
 int ecuAFR = 0;
 int ecuMAP = 0;
+int ecuTiming = 0;
 int rawEcuMapReading = 0;
 int rawEcuIatReading = 0;
 int rpmPerPulse = 20;

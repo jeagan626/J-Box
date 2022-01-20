@@ -36,7 +36,7 @@ const int ecuNUMprams = 8;
 int *ecuData[ecuNUMprams] = // Parameters pulled from OBDII C&C (must be in same order as device)
 {&hybridBatteryVoltage,&knockValue,
 &hybridBatteryCurrent,&intakeAirTemp,
-&hybridBatteryTemp,&ecuMAP,
+&hybridBatteryTemp,&ecuTiming,
 &hybridBatteryCharge,&ecuAFR};
 
 const int ecuMapPin = A12;
@@ -56,7 +56,7 @@ float MAPConvert(int ADCval);
 float MAP2Boost(float myMAP);
 float getFuelEnrichment(float boostPressure, float fuelPressure);
 float getFmuGain(float boostPressure, float fuelPressure);
-
+int lambdaConvert(int ADCval);
 void initializeIO()
 {
     pinMode(ecuMapPin,INPUT);
@@ -108,6 +108,7 @@ void readTach()
       return; // exit the function
     }
     // since the stale pulse time did not increase from the last recorded stale pulse time
+    // it has likely been inflated by the last time
     stalePulseTime = 1000000; // reset the default to one second
   }
   lastPulseIndex = pulseIndex; // record the current pulse index so we can test the conditions above
@@ -232,6 +233,11 @@ float getFmuGain(float boostPressure, float fuelPressure)
   }
 }
 
+int lambdaConvert(int ADCval)
+{
+  int tempLambda = map(ADCval,0,1023,7.35,22.39);
+  return(tempLambda);
+}
 void extractSerialData() // extracts data from the serial data stream from the obdii C&C
 {
   #define maxBufferSz 120
