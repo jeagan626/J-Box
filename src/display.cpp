@@ -1,7 +1,8 @@
+#include "globalData.h"
 #include "display.h"
 #include "gps.h"
 #include "logging.h"
-#include "globalData.h"
+
 /* Notes about display performance as of 12/20/21
 TLDR: 
 -Avoid calling sendBuffer() as much as possible, aim to do it only once per update cycle and outside of functions or classes
@@ -246,8 +247,8 @@ class touchEvent
     public:
     int x = 0;
     int y = 0;
-    uint8_t minimumDuration = 30;
-    uint8_t staleDuration = 20; // rework this method of debouncing or de
+    uint8_t minimumDuration = 50;
+    uint8_t staleDuration = 5; // rework this method of debouncing or de
     int duration = 0;
     int minPressure = 10;
     int maxPressure = 255;
@@ -257,7 +258,7 @@ class touchEvent
     elapsedMillis lastEvent;
     bool isScreenPressed = false;
     int touchEventDuration = 0;
-    #define numTraces 4
+    #define numTraces 64
     struct trace // this stores a history of a "trace" - a touch event where pressed and moved
     {
         int x = 0;
@@ -287,13 +288,14 @@ class touchEvent
             isScreenPressed = true; // note that the screen is now being pressed
             x = p.x;
             y = p.y;
+            traceIndex++;
+            if(traceIndex >= numTraces) { traceIndex = 0;} // if we exceed the maximum number of traces reset it
             // record the trace data
             traceData[traceIndex].x = x;
             traceData[traceIndex].y = y;
             traceData[traceIndex].z = p.z;
             traceData[traceIndex].t = touchDuration;
-            traceIndex++;
-            if(traceIndex >= numTraces) { traceIndex = 0;} // if we exceed the maximum number of traces reset it
+            
             
             // Serial.print(x);
             // Serial.print(",");
@@ -307,19 +309,19 @@ class touchEvent
             {
                 touchEventDuration = touchDuration; // record the duration of the touch event
                 duration = touchEventDuration;
-                for(int i = traceIndex + 1; i < numTraces; i++)
-                // go through the trace loop and fill in any remaining spots with the last available data
-                {
-                  traceData[i].x = traceData[traceIndex].x;
-                  traceData[i].y = traceData[traceIndex].y;
-                  traceData[i].z = traceData[traceIndex].z;
-                  //traceData[i].t = traceData[traceIndex].t;
-                  traceData[i].t = duration; // use the current duration to reflect the total time of press
+                // for(int i = traceIndex + 1; i < numTraces; i++)
+                // // go through the trace loop and fill in any remaining spots with the last available data
+                // {
+                //   traceData[i].x = traceData[traceIndex].x;
+                //   traceData[i].y = traceData[traceIndex].y;
+                //   traceData[i].z = traceData[traceIndex].z;
+                //   //traceData[i].t = traceData[traceIndex].t;
+                //   traceData[i].t = duration; // use the current duration to reflect the total time of press
 
-                }
+                // }
                 //traceData[traceIndex].t = duration;
                 lastEvent = 0; // record the time since the last press
-                traceIndex = 0; // reset the trace index
+                //traceIndex = 0; // reset the trace index
             }
             isScreenPressed = false; // note that the screen is no longer being pressed
 
@@ -354,75 +356,76 @@ class touchEvent
     {
         
         return( (touchEventDuration > minimumDuration) && (lastEvent < staleDuration) && (isScreenPressed == false)  );
+        
         // all of these conditions must be true for a valid touch press
     }
 
+    
     bool isAreaTapped(int xCenter, int yCenter, int width, int height)
-    {
+    { 
         // a better way to do this might be to go from the last trace value back to the first
         // basically checking that the button has been pressed
         // might be able just to run the loop backwards from the trace index
         if((lastEvent > staleDuration)){ // check to make sure the event did not occur too long ago
             return(false);
         }
-        int i = 0;
-        #define minHoldDuration 80
-        while( (traceData[i].t < minHoldDuration) && (i < numTraces)) //go though the trace data until the hold duration is exceeded or the index expries
-        {
-            // test for a faulty case and return false if found
-            // see if the diffrence between the location of known touch points and the center is greater than the allowable tolerance
-            if(abs(traceData[i].x - xCenter) > width)
-            {
-                Serial.print("xFailed @");
-                Serial.print(traceData[i].x);
-                Serial.print(" ! ");
-                Serial.print(xCenter);
-                Serial.print(" @index: ");
-                Serial.print(i);
-                Serial.print(" @dur: ");
-                Serial.println(traceData[i].t);
-
-                Serial.print("xFailed @");
-                Serial.print(traceData[i-1].x);
-                Serial.print(" ! ");
-                Serial.print(xCenter);
-                Serial.print(" @index: ");
-                Serial.print(i-1);
-                Serial.print(" @dur: ");
-                Serial.println(traceData[i-1].t);
-
-                return(false); // return the failed result
-            }
-            if(abs(traceData[i].y - yCenter) > height) 
-            {
-                Serial.print("yFailed @");
-                Serial.print(traceData[i].y);
-                Serial.print(" ! ");
-                Serial.print(yCenter);
-                Serial.print(" @index: ");
-                Serial.print(i);
-                Serial.print(" @dur: ");
-                Serial.println(traceData[i].t);
-
-                Serial.print("yFailed @");
-                Serial.print(traceData[i-1].y);
-                Serial.print(" ! ");
-                Serial.print(yCenter);
-                Serial.print(" @index: ");
-                Serial.print(i-1);
-                Serial.print(" @dur: ");
-                Serial.println(traceData[i-1].t);
-                return(false);
-            }
-            
-            i++; //increment the index
-        }
-        // if we pass all tests then our area must have been tapped
-        // clear the area
+        #define minHoldDuration 90
         
-        return(true);
+        if( (traceData[traceIndex].t > 5))// || ((abs(traceData[traceIndex].x - xCenter) <= width) && (abs(traceData[traceIndex].y - yCenter) <= height)) ) //make sure the hold duration is exceeded
+        {
+            Serial.print("\n\n\n");
+            int i = traceIndex;
+            int lastValidTraceIndex = -1; // store as negitive so we dont automatically assume an extra valid point
+            int validDuration = 0;
+            for(int maxLoops = 0; maxLoops < numTraces; maxLoops++) // go though all valid traces in reverse order (most recent to oldest)
+            {
+                Serial.print(traceData[i].x);
+                Serial.print(",");
+                Serial.print(traceData[i].y);
+                Serial.print(",");
+                Serial.print(traceData[i].z);
+                Serial.print(",");
+                Serial.print(traceData[i].t);
+                Serial.print(",");
+                Serial.print(i);
+                if(abs(traceData[i].x - xCenter) <= width)
+                {
+                    Serial.print("  xPassed = ");
+                    Serial.print(xCenter);
+                    if(abs(traceData[i].y - yCenter) <= height)
+                    {
+                        Serial.print("  yPassed = ");
+                        Serial.print(yCenter);
+                        if(lastValidTraceIndex > -1) // check that this is not our first valid trace
+                        {
+                            validDuration += abs(traceData[lastValidTraceIndex].t - traceData[i].t); //the amount of time the desired area was pressed consecutively 
+                            Serial.print(" validDuration: ");
+                            Serial.print(validDuration);
+                            Serial.print(" lastIndex: ");
+                            Serial.print(lastValidTraceIndex);
+                        }
+                        // this is a valid trace point
+                        lastValidTraceIndex = i;
+                        if(validDuration >= minHoldDuration){return(true);} // if we have found enough valid traces
+                    }else 
+                    {
+                        validDuration = 0;
+                        lastValidTraceIndex = -1;
+                    } // this is an invalid point
+                }else {validDuration = 0;lastValidTraceIndex = -1;} // this is an invalid point
+                // if you wanted it to ignore invalid points and just check that correct area had been pressed for 
+                Serial.print('\n');
+                i--; // go back an index
+                if(i < 0) // if the temporary index is less than zero
+                {
+                    i = numTraces - 1; // wrap the index back to the other end of the trace array
+                    // remember that the trace index can never be as large as the number of traces
+                    // 0 based indexing
+                }
+            } 
+        }
+     return(false);  
     }
-
 };
 
 touchEvent tap;
@@ -1347,7 +1350,7 @@ class button
         u8g2.setDrawColor(1);
         u8g2.setFontMode(0);
     }
-    
+    /*
     void read() // maybe call this read
     {
         if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
@@ -1375,20 +1378,28 @@ class button
         }
 
     }
-    /*void read() // this is the gamma stage of detecting presses in a more sophisticated way
+    // */
+
+    ///*
+    void read() // this is the gamma stage of detecting presses in a more sophisticated way
     // but for now it doesnt work as well
     {
         //if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
           
         // check to see if the tap is inside the button box
             //if(tap.isPressed()){ // if the user is pressing the button
-            if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){
+            if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,10)){
                     fillButton();
                 //Serial.println("pressed");
                 updateRequest = true;
             }
+            else{
+                //if(tap.isPressed()){ // if we are outside the button box but still pressing the screen
+                //draw();
+                //}
+            }
             //if(tap.isTapped()){ // if the user tapped the button
-             if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
+             if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,10)){ // checking area taped should be more accurate but it is in gamma stage
                 Serial.println("we got it!");
                 draw();
                 updateRequest = true;
@@ -1397,14 +1408,10 @@ class button
                 }
             }
         //}
-        else{
-            if(tap.isPressed()){ // if we are outside the button box but still pressing the screen
-            draw();
-            }
-        }
+        
 
     }
-    */
+    //*/
     
 };
 
@@ -1412,7 +1419,18 @@ void changeLogging_state()
 {
     loggingActive = !loggingActive;
 }
-
+void testButtonFunction()
+{
+    if(gpsSpeed < 100)
+    {
+        gpsSpeed = 100;
+    }
+    else
+    {
+        gpsSpeed = 0;
+    }
+    
+}
 // objects used for menu screen
 button M3ScreenButton;
 button scRacingScreenButton;
@@ -1656,7 +1674,8 @@ void initializeInsightScreen()
     logButton.y0 = 127;
     logButton.setText("LOG");
     logButton.initialize();
-    logButton.assignAction(&changeLogging_state);
+    //logButton.assignAction(&changeLogging_state);
+    logButton.assignAction(&testButtonFunction);
     menuButton.x0 = 1;
     menuButton.y0 = 127;
     menuButton.setText("MENU");
