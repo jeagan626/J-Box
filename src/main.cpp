@@ -8,17 +8,13 @@
 elapsedMicros actionTime;
 elapsedMicros loopTime;
 elapsedMillis lastLogEntry;
-//elapsedMillis milliseconds;
-IntervalTimer updateMillisecond;
 void setup() {
   // digitalWrite(LED_BUILTIN, HIGH);
   // delay(100);
   // digitalWrite(LED_BUILTIN, LOW);
   // delay(100);
   initializeDisplay();
-  setSyncProvider(getTeensy3Time);
-  updateMillisecond.begin(millisecondUpdate,500); // update the milisecond to the nearest .5ms
-  //void initializeSysClock();
+  initializeSysClock();
   Serial.begin(115200);
   Serial.println("test");
   // Serial.println(modf(10.51234512,1.0);
@@ -55,17 +51,17 @@ void loop() {
   actionTime = 0;
   displayScreen();
   displayUpdateTime = actionTime;
-  Serial.print(serialExtractTime);
-  Serial.print(',');
-  Serial.print(gpsUpdateTime);
-  Serial.print(',');
-  Serial.print(ioReadTime);
-  Serial.print(',');
-  Serial.print(dataLogTime);
-  Serial.print(',');
-  Serial.print(displayUpdateTime);
-  Serial.print(',');
-  Serial.println(loopTime);
+  // Serial.print(serialExtractTime);
+  // Serial.print(',');
+  // Serial.print(gpsUpdateTime);
+  // Serial.print(',');
+  // Serial.print(ioReadTime);
+  // Serial.print(',');
+  // Serial.print(dataLogTime);
+  // Serial.print(',');
+  // Serial.print(displayUpdateTime);
+  // Serial.print(',');
+  // Serial.println(loopTime);
 
 //BakerFSAEscreen();
 

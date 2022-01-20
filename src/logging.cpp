@@ -11,7 +11,7 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 SdFs SD;
 FsFile dataFile;
 elapsedMillis milliseconds;
-// IntervalTimer updateMillisecond;
+IntervalTimer updateMillisecond;
 unsigned int lastSeconds = 0;
 time_t getTeensy3Time()
 {
@@ -57,7 +57,7 @@ unsigned int rtc_ms()
 }
 void millisecondUpdate() // this might not be a good idea since the loop speed may be slow enough to constantly reset miliseconds mid second
 {
-  if(second() - lastSeconds > 0) // if one second has passed
+  if(second() - lastSeconds != 0) // if one second has passed
   {
     lastSeconds = second(); // reset the counter
     if(milliseconds % 1000 != 0) // check to see if milliseconds has rolled over
@@ -70,13 +70,13 @@ void millisecondUpdate() // this might not be a good idea since the loop speed m
 void initializeSysClock()
 {
   setSyncProvider(getTeensy3Time);
-  //updateMillisecond.begin(millisecondUpdate,500); // update the milisecond to the nearest .5ms
+  updateMillisecond.begin(millisecondUpdate,500); // update the milisecond to the nearest .5ms
 }
 // 3 
 String constructDateTime(uint8_t i)
 { 
   char dateTimeString[64] = "";
-
+  unsigned int myMilliseconds = milliseconds % 1000;
   switch (i)
   {
     case 0:
@@ -93,12 +93,12 @@ String constructDateTime(uint8_t i)
     
     case 3:
       //sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),rtc_ms() / 10);
-      sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),milliseconds / 10);
+      sprintf(dateTimeString,"%.2i/%.2i/%.2i %.2i:%.2i:%.2i.%.2i",month(),day(),year()%1000,hour(),minute(),second(),myMilliseconds / 10);
       break;
 
     case 4:
       //sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),rtc_ms());
-      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),milliseconds);
+      sprintf(dateTimeString,"%.2i:%.2i:%.2i.%.3i",hour(),minute(),second(),myMilliseconds);
       break;
 
     case 5:

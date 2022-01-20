@@ -68,6 +68,7 @@ int initializeGPS()
 
 void updateGPS()
 {
+  if(GPSconnected == false){return;} // if the GPS isn't connected there's nothing to do
   newGPSUpdate = false;
   myGNSS.checkUblox(); // Check for the arrival of new data and process it.
   myGNSS.checkCallbacks(); // Check if any callbacks are waiting to be processed.
