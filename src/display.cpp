@@ -1567,6 +1567,9 @@ digitalGauge oilPressGauge;
 digitalGauge AFR;
 digitalGauge TPSval;
 digitalGauge MAPval;
+digitalGauge turbinePressureGauge;
+digitalGauge knock;
+digitalGauge fuelPressureGauge;
 digitalGauge BatteryCurrent;
 digitalGauge BatteryVoltage;
 
@@ -1580,10 +1583,13 @@ void insightScreen()
     loggingStatusMessage.displayLog_status();
     date.displayDate();
     speed.display(gpsSpeed);
-    AFR.display(ecuAFR/10);
+    AFR.display(AirFuelRatio/100.0);
+    knock.display(knockValue/10.0);
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
     MAPval.display(MAP);
+    turbinePressureGauge.display(turbinePressure);
+    fuelPressureGauge.display(fuelPressure);
     BatteryCurrent.display((hybridBatteryCurrent/100));
     BatteryVoltage.display(hybridBatteryVoltage);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
@@ -1616,11 +1622,14 @@ void initializeInsightScreen()
     speed.y0 = 74;
     speed.initializeLargeGauge(88);
     AFR.initializeMediumGauge(speed.xEnd()+5,60,22.0,"%3.1f","AFR");
+    knock.initializeMediumGauge(speed.xEnd()+5,78,22.0,"%3.1f","KNK");
     xAcel.initializeMediumGauge(190,50,-99,"%+2.0f","xg");
     yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg");
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
-    MAPval.initializeMediumGauge(TPSval.xEnd()+5,92,300,"%2.0f","kPa");
+    MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa");
+    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,15,"%3.0f","psi");
+    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi");
     BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
     BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
     // xAcel.maxVal = -99.0;

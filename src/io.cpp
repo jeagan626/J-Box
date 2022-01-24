@@ -40,14 +40,15 @@ int *ecuData[ecuNUMprams] = // Parameters pulled from OBDII C&C (must be in same
 &hybridBatteryCharge,&ecuAFR};
 
 const int ecuMapPin = A12;
-const int tachPin = A13;
+const int turbinePressurePin = A13;
 const int lambdaPin = A14;
 const int tpsPin = A15;
 const int mapPin = A16;
 const int iatPin = A17;
 const int oilPressSensorPin = A18;
 const int fuelPressSensorPin = A19;
-
+const int auxLSpin = 12;
+const int tachPin = 28;
 
 float OilPressureConvert(int ADCval);
 float FuelPressureConvert(int ADCval);
@@ -60,16 +61,18 @@ int lambdaConvert(int ADCval);
 void initializeIO()
 {
     pinMode(ecuMapPin,INPUT);
-    pinMode(tachPin,INPUT);
+    pinMode(turbinePressurePin,INPUT);
     pinMode(lambdaPin,INPUT);
     pinMode(tpsPin,INPUT);
     pinMode(mapPin,INPUT);
     pinMode(iatPin,INPUT);
     pinMode(oilPressSensorPin,INPUT);
     pinMode(fuelPressSensorPin,INPUT);
-    pinMode(tachPin,INPUT);
+    pinMode(tachPin,INPUT_PULLUP);
     attachInterrupt(tachPin,tachPulseEvent,FALLING);
     pinMode(0,INPUT);
+    pinMode(auxLSpin,OUTPUT);
+    digitalWrite(auxLSpin,LOW); // make sure this is low for now
     //Serial1.begin(9600); // for old OBii C&C software
     Serial1.begin(38400,SERIAL_8N1_RXINV); // for new obdII C&C software
 
@@ -84,6 +87,8 @@ void readIO()
     fuelPressure = FuelPressureConvert(analogRead(fuelPressSensorPin));
     readTach();
     throttlePosition = map(analogRead(tpsPin),110,920,0,99);
+    AirFuelRatio = lambdaConvert(analogRead(lambdaPin));
+    turbinePressure = TurbinePressureConvert(analogRead(turbinePressurePin));
     //extractSerialData();
 }
 
@@ -184,14 +189,16 @@ float FuelPressureConvert(int ADCval)
 
 float TurbinePressureConvert(int ADCval)
 {
-  // this is for the 30PSI sensor
-  if(ADCval > 1015)
-  return(999);
-  if (ADCval <= 101)
-  {
-    return (0);
-  }
-  float TurbinePressure = (.0376 * ADCval) - 2.781;
+  // // this is for the 30PSI sensor
+  // if(ADCval > 1015)
+  // return(999);
+  // if (ADCval <= 101)
+  // {
+  //   return (0);
+  // }
+  // float TurbinePressure = (.0376 * ADCval) - 2.781;
+  float TurbinePressure = map(ADCval,102,920,0,150);
+  TurbinePressure = constrain(TurbinePressure,0,400);
   return TurbinePressure;
 }
 
@@ -235,7 +242,7 @@ float getFmuGain(float boostPressure, float fuelPressure)
 
 int lambdaConvert(int ADCval)
 {
-  int tempLambda = map(ADCval,0,1023,7.35,22.39);
+  int tempLambda = map(ADCval,0,1023,735,2239);
   return(tempLambda);
 }
 void extractSerialData() // extracts data from the serial data stream from the obdii C&C

@@ -13,6 +13,7 @@ extern int fuelPressure;
 extern int knockValue;
 extern int maxKnockValue;
 extern int AirFuelRatio;
+extern int turbinePressure;
 
 extern int hybridBatteryVoltage;
 extern int engLoad;
