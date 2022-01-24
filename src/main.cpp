@@ -47,7 +47,7 @@ void loop() {
     
     lastLogEntry = 0;
   }
-  
+  dumbBoostControl();
   actionTime = 0;
   displayScreen();
   displayUpdateTime = actionTime;

@@ -6,4 +6,5 @@ void initializeIO();
 void readIO();
 void extractSerialData();
 void readTach();
+void dumbBoostControl();
 #endif

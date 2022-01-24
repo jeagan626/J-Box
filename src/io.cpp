@@ -1,6 +1,6 @@
 #include "io.h"
 #include "globalData.h"
-
+#include <SoftPWM.h>
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
 const uint8_t numPulses = 5;
@@ -75,6 +75,9 @@ void initializeIO()
     digitalWrite(auxLSpin,LOW); // make sure this is low for now
     //Serial1.begin(9600); // for old OBii C&C software
     Serial1.begin(38400,SERIAL_8N1_RXINV); // for new obdII C&C software
+    // SoftPWMBegin(SOFTPWM_NORMAL);
+    // SoftPWMSet(auxLSpin,40);
+
 
 }
 
@@ -89,6 +92,7 @@ void readIO()
     throttlePosition = map(analogRead(tpsPin),110,920,0,99);
     AirFuelRatio = lambdaConvert(analogRead(lambdaPin));
     turbinePressure = TurbinePressureConvert(analogRead(turbinePressurePin));
+    //turbinePressure = map(analogRead(turbinePressurePin),102,920,0,30);
     //extractSerialData();
 }
 
@@ -160,7 +164,17 @@ void readTach()
   //Serial.println(tachFreq);
   engRPM = tachFreq * rpmPerPulse;
 }
-
+void dumbBoostControl()
+{
+  if( MAP < 130 && engRPM > 2000)
+  {
+    digitalWrite(auxLSpin,HIGH);
+  }
+  else
+  {
+    digitalWrite(auxLSpin,LOW);
+  }
+}
 float OilPressureConvert(int ADCval)
 {
   // this is for the 100PSI sensor
