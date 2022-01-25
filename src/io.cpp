@@ -166,7 +166,7 @@ void readTach()
 }
 void dumbBoostControl()
 {
-  if( MAP < 130 && engRPM > 2000)
+  if( MAP < 130 && engRPM > 2000 && throttlePosition > 60)
   {
     digitalWrite(auxLSpin,HIGH);
   }
