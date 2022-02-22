@@ -8,4 +8,4 @@ A telephone jack serves as a connector to the I2C bus, allowing you to daisy cha
 
 The primary connector (26 Position) is a MQS (Micro Quadlok) style, it uses a 0.1" pitch so you can use dupont jumpers to interface with it, or opt for the MQS system for a more durable connection.
 
-There is also a protoboard area for you to construct your own circuits on J-Box
+There is also a protoboard area for you to construct your own circuits/additions on J-Box
