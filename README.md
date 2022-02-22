@@ -1,3 +1,4 @@
+# ![img](JboxIcon.png)
 # J-Box
 J-Box is an open source data logger, dashboard, and instrumentation device. It is powered by a Teensy 3.6 and a 240 x 128 Graphic Touchscreen Display that interfaces with the Sparkfun NEO-M8U GPS Module for Speed, Position, and Acceleration data.
 
