@@ -41,7 +41,7 @@ int initializeGPS()
     int error = 0;
     Wire.begin();
     
-    Wire.setClock(40000);
+    Wire.setClock(400000); // set the I2C bus to the Ublox Maximum of 400khz
     if(myGNSS.begin() == false) //Connect to the Ublox module using Wire port
   {
     GPSconnected = false;
@@ -68,6 +68,7 @@ int initializeGPS()
 
 void updateGPS()
 {
+  if(GPSconnected == false){return;} // if the GPS isn't connected there's nothing to do
   newGPSUpdate = false;
   myGNSS.checkUblox(); // Check for the arrival of new data and process it.
   myGNSS.checkCallbacks(); // Check if any callbacks are waiting to be processed.

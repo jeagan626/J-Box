@@ -1,79 +1,67 @@
 #include "display.h"
 #include "gps.h"
 #include "logging.h"
+#include "io.h"
 #include <U8g2lib.h> 
 #include "globalData.h"
-volatile int tachPulse = 0;
-volatile int pulseCount = 0;
-int tachCount = 0;
-int pulseInterval = 100;
-int tachFreq = 0;
-int tachRpm = 0;
-elapsedMillis pulseUpdate;
-elapsedMillis displayUpdateTime;
-elapsedMillis lastLogEntry;
-IntervalTimer checkPulses;
-void tachPulseEvent()
-{
-  tachPulse++;
-}
-void pulseTally()
-{
-  noInterrupts();
-  pulseCount = tachPulse;
-  tachPulse = 0;
-  interrupts();
-}
 
+elapsedMicros actionTime;
+elapsedMicros loopTime;
+elapsedMillis lastLogEntry;
 void setup() {
   // digitalWrite(LED_BUILTIN, HIGH);
   // delay(100);
   // digitalWrite(LED_BUILTIN, LOW);
   // delay(100);
-  // drawBoxGauge(8000,12000,cutoff);
-  // circularGaugeLayout();
   initializeDisplay();
-  setSyncProvider(getTeensy3Time);
-  Serial.begin(9600);
+  initializeSysClock();
+  Serial.begin(115200);
   Serial.println("test");
-  pinMode(32,INPUT);
-  attachInterrupt(32,tachPulseEvent,CHANGE);
-  checkPulses.begin(pulseTally,50000);
-  //checkPulses.priority(40);
   // Serial.println(modf(10.51234512,1.0);
   pinMode(LED_BUILTIN,OUTPUT);
+  initializeIO();
   initializeGPS();
   initializeSD();
-  initializeEaganM3_Screen();
-  //gpsSpeed = 0;
 }
 
 void loop() {
-  if(lastLogEntry > 50)
+  mainLoopTime = loopTime;
+  loopTime = 0;
+  actionTime = 0;
+  extractSerialData();
+  serialExtractTime = actionTime; // note the time taken to extract the serial data
+  
+  actionTime = 0;
+  updateGPS();
+  gpsUpdateTime = actionTime;
+
+  if(lastLogEntry > 40)
   {
+    actionTime = 0;
+    readIO();
+    ioReadTime = actionTime; // note the time taken to extract the serial data
+    
+    actionTime = 0;
     logData();
+    dataLogTime = actionTime;
+    
     lastLogEntry = 0;
   }
-  updateGPS();
-
-  int newtachFreq = (pulseCount * 500) / 50; // measure the frequency of the tach wire (change interupt means two counts per pulse)
-   if (abs(newtachFreq - tachFreq) <= 10){ // if the diffrence between the frequencies is small
-    tachFreq = max(tachFreq,newtachFreq); // use the larger of the two calculated frequencies to prevent jitter
-   }
-   else
-   { // use the new frequency
-    tachFreq = newtachFreq;
-   }
-  //Serial.print(pulseCount);
-  //Serial.print("  ");
-  // Serial.print(pulseInterval);
-  // Serial.print("  ");
-  //Serial.println(tachFreq);
-  engRPM = tachFreq * 20;
-
-EaganM3_Screen(engRPM);
-//Serial.println(displayUpdateTime);
-displayUpdateTime = 0;
+  dumbBoostControl();
+  actionTime = 0;
+  displayScreen();
+  displayUpdateTime = actionTime;
+  // Serial.print(serialExtractTime);
+  // Serial.print(',');
+  // Serial.print(gpsUpdateTime);
+  // Serial.print(',');
+  // Serial.print(ioReadTime);
+  // Serial.print(',');
+  // Serial.print(dataLogTime);
+  // Serial.print(',');
+  // Serial.print(displayUpdateTime);
+  // Serial.print(',');
+  // Serial.println(loopTime);
 
 //BakerFSAEscreen();
 

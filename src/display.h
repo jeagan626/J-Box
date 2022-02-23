@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include "TouchScreen.h"
-#include "globalData.h"
 #include <string>
 #include <math.h>
 void menuScreen();
@@ -16,8 +15,10 @@ void initializeBakerFSAEscreen();
 void BakerFSAEscreen();
 //class performanceTestScreen
 
-void initializeEaganM3_Screen(int myRPM = 0);
-void EaganM3_Screen(int myRPM = 0);
+void initializeMenuScreen();
+void initializeEaganM3_Screen();
+void EaganM3_Screen();
+void displayScreen();
 void initializeEaganInsightScreen();
 void drawMph(int mph);
 void drawRpm(int rpm);

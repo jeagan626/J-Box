@@ -1,6 +1,7 @@
 #include "display.h"
 #include "gps.h"
 #include "logging.h"
+#include "globalData.h"
 /* Notes about display performance as of 12/20/21
 TLDR: 
 -Avoid calling sendBuffer() as much as possible, aim to do it only once per update cycle and outside of functions or classes
@@ -11,6 +12,7 @@ TLDR:
 
 
 Display performance seems decent in that it takes around 30ms to wite the screen black or white;
+teensy 3.6 can do it in 20ms!!!
 meaning every pixel in the buffer has been changed.
 This also means every call to u8g2.sendBuffer() will take 30ms to complete assuming the buffer contains information that fills up the screen
 or modifies pixels located in the corner of the screen as the full buffer needs to be sent to modify information in the last sections of display ram
@@ -218,7 +220,8 @@ String gears[6] = {"N","1","2","3","4","5"}; // this could probably be done with
 int gIndex = 0;
 int gearDir = 1;
 bool updateRequest = true; // use this as a flag to see if the screen needs to be updated
-
+void (*screenPointer)() = &initializeMenuScreen; // this points to the screen we want to show
+void (*lastScreen)(); // this stores the last screen displayed
 
 
 U8G2_T6963_240X128_F_8080 u8g2(U8G2_R2, 2, 14, 7, 8, 6, 20, 21, 5, /*enable/wr=*/ 27 , /*cs/ce=*/ 26, /*dc=*/ 25, /*reset=*/24); // Connect RD (orange) with +5V, FS0 and FS1 with GND
@@ -236,15 +239,15 @@ p.z = abs(map(p.z,900,250,0,255));
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM , 730);
 enum screens {menu,settings,gps,naughtTo60Timer};
-screens currentScreen = settings;
+screens currentScreen = menu;
 
 class touchEvent
 {
     public:
     int x = 0;
     int y = 0;
-    uint8_t minimumDuration = 30;
-    uint8_t staleDuration = 20; // rework this method of debouncing or de
+    uint8_t minimumDuration = 50;
+    uint8_t staleDuration = 5; // rework this method of debouncing or de
     int duration = 0;
     int minPressure = 10;
     int maxPressure = 255;
@@ -254,6 +257,16 @@ class touchEvent
     elapsedMillis lastEvent;
     bool isScreenPressed = false;
     int touchEventDuration = 0;
+    #define numTraces 4
+    struct trace // this stores a history of a "trace" - a touch event where pressed and moved
+    {
+        int x = 0;
+        int y = 0;
+        int z = 0;
+        int t = 0;
+    } traceData[numTraces];
+    uint8_t traceIndex = 0;
+    
 
     public:
     void detect() // the detect touch function serves to identify if the screen has been touched, if it meets the minimum duration
@@ -274,6 +287,13 @@ class touchEvent
             isScreenPressed = true; // note that the screen is now being pressed
             x = p.x;
             y = p.y;
+            // record the trace data
+            traceData[traceIndex].x = x;
+            traceData[traceIndex].y = y;
+            traceData[traceIndex].z = p.z;
+            traceData[traceIndex].t = touchDuration;
+            traceIndex++;
+            if(traceIndex >= numTraces) { traceIndex = 0;} // if we exceed the maximum number of traces reset it
             
             // Serial.print(x);
             // Serial.print(",");
@@ -287,7 +307,19 @@ class touchEvent
             {
                 touchEventDuration = touchDuration; // record the duration of the touch event
                 duration = touchEventDuration;
+                for(int i = traceIndex + 1; i < numTraces; i++)
+                // go through the trace loop and fill in any remaining spots with the last available data
+                {
+                  traceData[i].x = traceData[traceIndex].x;
+                  traceData[i].y = traceData[traceIndex].y;
+                  traceData[i].z = traceData[traceIndex].z;
+                  //traceData[i].t = traceData[traceIndex].t;
+                  traceData[i].t = duration; // use the current duration to reflect the total time of press
+
+                }
+                //traceData[traceIndex].t = duration;
                 lastEvent = 0; // record the time since the last press
+                traceIndex = 0; // reset the trace index
             }
             isScreenPressed = false; // note that the screen is no longer being pressed
 
@@ -297,11 +329,98 @@ class touchEvent
     {
         return(isScreenPressed);
     }
+    
+    bool isAreaPressed(int xCenter, int yCenter, int width, int height)
+    {
+       if(isScreenPressed == false)
+       {
+           return(false);
+       }
+       // test for a faulty case and return false if found
+       if(abs(x - xCenter) > width)
+       {
+          return(false);
+       }
+
+       if(abs(y - yCenter) > height)
+       {
+          return(false);
+       }
+       // if we pass all tests then our area must have been tapped
+       return(true);
+    }
+
     bool isTapped()
     {
         
         return( (touchEventDuration > minimumDuration) && (lastEvent < staleDuration) && (isScreenPressed == false)  );
         // all of these conditions must be true for a valid touch press
+    }
+
+    bool isAreaTapped(int xCenter, int yCenter, int width, int height)
+    {
+        // a better way to do this might be to go from the last trace value back to the first
+        // basically checking that the button has been pressed
+        // might be able just to run the loop backwards from the trace index
+        if((lastEvent > staleDuration)){ // check to make sure the event did not occur too long ago
+            return(false);
+        }
+        int i = 0;
+        #define minHoldDuration 80
+        while( (traceData[i].t < minHoldDuration) && (i < numTraces)) //go though the trace data until the hold duration is exceeded or the index expries
+        {
+            // test for a faulty case and return false if found
+            // see if the diffrence between the location of known touch points and the center is greater than the allowable tolerance
+            if(abs(traceData[i].x - xCenter) > width)
+            {
+                Serial.print("xFailed @");
+                Serial.print(traceData[i].x);
+                Serial.print(" ! ");
+                Serial.print(xCenter);
+                Serial.print(" @index: ");
+                Serial.print(i);
+                Serial.print(" @dur: ");
+                Serial.println(traceData[i].t);
+
+                Serial.print("xFailed @");
+                Serial.print(traceData[i-1].x);
+                Serial.print(" ! ");
+                Serial.print(xCenter);
+                Serial.print(" @index: ");
+                Serial.print(i-1);
+                Serial.print(" @dur: ");
+                Serial.println(traceData[i-1].t);
+
+                return(false); // return the failed result
+            }
+            if(abs(traceData[i].y - yCenter) > height) 
+            {
+                Serial.print("yFailed @");
+                Serial.print(traceData[i].y);
+                Serial.print(" ! ");
+                Serial.print(yCenter);
+                Serial.print(" @index: ");
+                Serial.print(i);
+                Serial.print(" @dur: ");
+                Serial.println(traceData[i].t);
+
+                Serial.print("yFailed @");
+                Serial.print(traceData[i-1].y);
+                Serial.print(" ! ");
+                Serial.print(yCenter);
+                Serial.print(" @index: ");
+                Serial.print(i-1);
+                Serial.print(" @dur: ");
+                Serial.println(traceData[i-1].t);
+                return(false);
+            }
+            
+            i++; //increment the index
+        }
+        // if we pass all tests then our area must have been tapped
+        // clear the area
+        
+        return(true);
     }
 
 };
@@ -318,18 +437,37 @@ void initializeDisplay()
     u8g2.clearBuffer();
     // u8g2.setFont(u8g2_font_logisoso58_tf);
     // u8g2.drawStr(25,80,"J-Box");
-    u8g2.drawXBM( 80, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
+    u8g2.drawXBM( 40, 10, JboxIcon_width, JboxIcon_height, JboxIcon_bits);
     //u8g2.drawXBM( 0, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
     u8g2.setFont(u8g2_font_courR10_tr);
     u8g2.setFontPosBaseline(); // Set the font position to the bottom
-    // u8g2.drawStr(160,10,"J-Box");
-    // u8g2.drawStr(160,23,"Bootup");
+    u8g2.drawStr(160,10,"J-Box");
+    u8g2.drawStr(160,23,"Bootup");
     u8g2.sendBuffer();
     delay(2000);
     u8g2.clearBuffer();
 }
+
+void displayScreen()
+{
+  updateRequest = false;
+  tap.detect();
+  screenPointer(); // pull up the screen pointed to by the screen pointer
+  
+  if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
+    {
+    u8g2.sendBuffer();
+    lastDisplayUpdate = millis();
+    }
+}
+
 void initializeBakerFSAEscreen()
 {
+  u8g2.clearBuffer();
+  u8g2.drawXBM( 80, 30, ScRacing_width, ScRacing_height, ScRacing_bits);
+  u8g2.sendBuffer();
+  delay(2000);
+  u8g2.clearBuffer();
   lastMphUpdate = 0;
   lastRpmUpdate = 0;
   lastCTempUpdate = 0;
@@ -345,17 +483,19 @@ void initializeBakerFSAEscreen()
   drawCoolantTemp(coolantTemp);
   drawEngineTemp(engineTemp);
   drawFuel(fuelLevel);
-  drawVoltage(battVoltage);  
+  drawVoltage(battVoltage);
+  u8g2.sendBuffer();
+  screenPointer = &BakerFSAEscreen;
 }
 void BakerFSAEscreen()
 {
     
-//   if (rpm==8000) {
-//     rpm = 0;
-//   } else {
-//     rpm+=100;    
-//   }
-  //drawBoxGauge(rpm, 8500,cutoff);
+  if (rpm==12000) {
+    rpm = 0;
+  } else {
+    rpm+=100;    
+  }
+  drawBoxGauge(rpm, 12000, 4000, 10000);
   
   if (millis()-lastMphUpdate>500){
     if (mph==99) {
@@ -433,119 +573,11 @@ void initializeEaganInsightScreen()
     //drawBoxGauge(rpm, 6500, 1000, 5800);
 }
 
-bool updateScreen = false; // this is a legacy variable used for the menuscreen function
-void menuScreen()
-{
-    switch (currentScreen)
-    {
-    case menu:
-        if(updateScreen){
-            u8g2.clearBuffer();
-            u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-            u8g2.drawStr(32,18,"Menu");
-            u8g2.drawLine(0,19,240,19);
-            ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-            u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-            u8g2.drawStr(0,40,"Device Settings");
-            u8g2.drawStr(0,60,"Option 2");
-            u8g2.drawStr(0,80,"Acceleration Tests");
-            u8g2.sendBuffer();
-            u8g2.setDrawColor(1); // reset the draw color back to the default
-            updateScreen = false;
-        }
-        p = ts.getPoint();
-        if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
-            modifyPointToScreen();
-            Serial.print(p.x);
-            Serial.print(',');
-            Serial.print(p.y);
-            Serial.print(',');
-            Serial.println(p.z);
-            if(abs(p.y-30) < 10 ){
-                currentScreen = settings;
-                updateScreen = true;
-            }
-        }
-        break;
-        case settings:
-        if(updateScreen){
-            u8g2.clearBuffer();
-            u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
-            u8g2.drawStr(5,18,"<");
-            u8g2.drawStr(32,18,"Device Settings");
-            u8g2.drawLine(0,19,240,19);
-            ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
-            u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
-            u8g2.drawStr(0,40,"Calibrate Screen");
-            u8g2.drawStr(0,60,"Logging Options");
-            u8g2.drawStr(0,80,"COM Settings");
-            u8g2.sendBuffer();
-            u8g2.setDrawColor(1); // reset the draw color back to the default
-            updateScreen = false;
-        }
-        p = ts.getPoint();
-        if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
-            modifyPointToScreen();
-            Serial.print(p.x);
-            Serial.print(',');
-            Serial.print(p.y);
-            Serial.print(',');
-            Serial.println(p.z);
-            if(abs(p.y-30) < 10 ){ //
-                currentScreen = settings;
-                updateScreen = true;
-            }
-             if(abs(p.y-5) < 8 ){ //
-                currentScreen = menu;
-                updateScreen = true;
-            }
-        }
-        break;
-    }
-}
+bool updateScreen = true; // this is a legacy variable used for the menuscreen function
 
-// Draws a portion of a cicle, angle in radians. Keep in mind y axis is flipped.
-void drawPartialCircle(int xo, int yo, double radius, double initialAngle, double finalAngle){
-    for (double angle = initialAngle; angle<=finalAngle; angle = angle + .01){
-        u8g2.drawPixel(xo+int(radius*cos(angle)),yo+int(radius*sin(angle)));
-    }
-}
 
-//Draws a circular gauge with a "needle" at some proportion of a maximum
-void drawGauge(int xo, int yo, int rad, double maxValue, double currentValue) {
-    double initAngle = M_PI*(1.0/4.0);
-    double finalAngle = M_PI*(7.0/4.0);
-    drawPartialCircle(xo,yo,rad*1.0,initAngle,finalAngle);
-    double angle = (currentValue/maxValue)*(finalAngle-initAngle)+initAngle;
-    //needle 3 pixels thick
-    for (int i = -1; i<=1; i++) {
-        for (int j = -1; j<=1; j++) {
-            u8g2.drawLine(xo+i,yo+j,xo+int(rad*cos(angle))+i,yo+int(rad*sin(angle))+j);
-        }
-    }
-    // u8g2.drawLine(xo-1,yo-1,xo+int(rad*cos(angle))-1,yo+int(rad*sin(angle))-1);
-    // u8g2.drawLine(xo,yo,xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
-    // u8g2.drawLine(xo+1,yo+1,xo+int(rad*cos(angle))+1,yo+int(rad*sin(angle))+1);
-    //markers and labels
-    u8g2.setFont(u8g2_font_chroma48medium8_8n);
-    int i = 0;
-    int numNotches = maxValue/1000;
-    for (double angle = initAngle; angle<=finalAngle; angle = angle + (finalAngle-initAngle)/numNotches){
-        u8g2.drawLine(xo+int(rad*.85*cos(angle)),yo+int(rad*.85*sin(angle)),xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
-        u8g2.drawStr(xo+int(rad*.85*cos(angle)-8.0/sqrt(2)),yo+int(rad*.85*sin(angle)+8.0/sqrt(2)),String(i).c_str());
-        i = i+1;
-    }
-}
 
-void drawCircularBarGauge(int xo, int yo, int rad, double maxValue, double currentValue) {
-    double initAngle = M_PI*(1.0/4.0);
-    double finalAngle = M_PI*(7.0/4.0);
-    double currentAngle = (currentValue/maxValue)*(finalAngle-initAngle)+initAngle;
-    for (double angle = initAngle; angle<=currentAngle; angle = angle + .001){
-        double lin = (currentValue / maxValue) / 2.0;
-        u8g2.drawLine(xo+int(rad*lin*cos(angle)),yo+int(rad*lin*sin(angle)),xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
-    }
-}
+
 
 void clearBox(int x0, int y0, int w, int h) {
     //TODO: replace all appearances of the below with this method
@@ -554,197 +586,242 @@ void clearBox(int x0, int y0, int w, int h) {
     u8g2.setDrawColor(1);
 }
 
-void drawGear(String gear){
-    int w = 45;
-    int h = 68;
-    int x0 = screenx/2-w/2;
-    int y0 = screeny/2-21;
-    clearBox(x0,y0,w,h);
-    u8g2.setFont(u8g2_font_logisoso58_tf);
-    u8g2.drawStr(x0+4,y0+63,gear.c_str());
-    u8g2.drawFrame(x0,y0,w,h);
-}
+//baker legacy functions
 
-void drawMph(int mph) {
-    int x0 = 12;
-    int y0 = screeny/2+20;
-    clearBox(x0,y0-30,40,31);
-    u8g2.setFont(u8g2_font_logisoso30_tr);
-    if (mph<10) {
-        u8g2.drawStr(x0+20,y0,String(mph).c_str());
-    } else {
-        u8g2.drawStr(x0,y0,String(mph).c_str());
+// Draws a portion of a cicle, angle in radians. Keep in mind y axis is flipped.
+    void drawPartialCircle(int xo, int yo, double radius, double initialAngle, double finalAngle){
+        for (double angle = initialAngle; angle<=finalAngle; angle = angle + .01){
+            u8g2.drawPixel(xo+int(radius*cos(angle)),yo+int(radius*sin(angle)));
+        }
     }
-    u8g2.sendBuffer();
-}
 
-void drawRpm(int rpm) {
-    u8g2.setDrawColor(0);
-    u8g2.drawBox(110,0,150,31);
-    u8g2.drawBox(150,0,fontx*3,fonty*2+1);
-    u8g2.drawDisc(screenx-55,screeny/2,46);
-    u8g2.setDrawColor(1);
-    u8g2.setFont(u8g2_font_logisoso30_tr);
-    if (rpm<10000) {
-        u8g2.drawStr(130,30,String(rpm/1000).c_str());
-    } else {
-        u8g2.drawStr(110,30,String(rpm/1000).c_str());
+    //Draws a circular gauge with a "needle" at some proportion of a maximum
+    void drawGauge(int xo, int yo, int rad, double maxValue, double currentValue) {
+        double initAngle = M_PI*(1.0/4.0);
+        double finalAngle = M_PI*(7.0/4.0);
+        drawPartialCircle(xo,yo,rad*1.0,initAngle,finalAngle);
+        double angle = (currentValue/maxValue)*(finalAngle-initAngle)+initAngle;
+        //needle 3 pixels thick
+        for (int i = -1; i<=1; i++) {
+            for (int j = -1; j<=1; j++) {
+                u8g2.drawLine(xo+i,yo+j,xo+int(rad*cos(angle))+i,yo+int(rad*sin(angle))+j);
+            }
+        }
+        // u8g2.drawLine(xo-1,yo-1,xo+int(rad*cos(angle))-1,yo+int(rad*sin(angle))-1);
+        // u8g2.drawLine(xo,yo,xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
+        // u8g2.drawLine(xo+1,yo+1,xo+int(rad*cos(angle))+1,yo+int(rad*sin(angle))+1);
+        //markers and labels
+        u8g2.setFont(u8g2_font_chroma48medium8_8n);
+        int i = 0;
+        int numNotches = maxValue/1000;
+        for (double angle = initAngle; angle<=finalAngle; angle = angle + (finalAngle-initAngle)/numNotches){
+            u8g2.drawLine(xo+int(rad*.85*cos(angle)),yo+int(rad*.85*sin(angle)),xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
+            u8g2.drawStr(xo+int(rad*.85*cos(angle)-8.0/sqrt(2)),yo+int(rad*.85*sin(angle)+8.0/sqrt(2)),String(i).c_str());
+            i = i+1;
+        }
     }
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    u8g2.drawStr(150,fonty,String(rpm%1000).c_str());
-    drawGauge(screenx-55,screeny/2,45,12000.0,rpm*1.0);
-    u8g2.sendBuffer();
-}
 
-void drawCoolantTemp(int coolantTemp) {
-    int x0 = (coolantTemp>=100) ? 0 : fontx;
-    int y0 = screeny-fonty;
-    clearBox(x0,y0-fonty,fontx*(2+(coolantTemp/100)),fonty);
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    u8g2.drawStr(x0,y0,String(coolantTemp).c_str());
-}
-void drawEngineTemp(int engineTemp) {
-    int x0 = (engineTemp>=100) ? 0 : fontx;
-    int y0 = screeny;
-    clearBox(x0,y0-fonty,fontx*(2+(engineTemp/100)),fonty);
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    u8g2.drawStr(x0,y0,String(engineTemp).c_str());
-}
-
-void drawFuel(int fuelLevel) {
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    int x0 = (screenx/2)-fontx*(9/2);
-    int y0 = screeny;
-    clearBox(x0,y0-fonty,fontx*3,fonty);
-    const char *fuelStr = String(fuelLevel).c_str();
-    if (fuelLevel>=100){
-        u8g2.drawStr(x0,y0,fuelStr);
-    } else if (fuelLevel>10) {
-        u8g2.drawStr(x0+fontx,y0,fuelStr);
-    } else {
-        u8g2.drawStr(x0+2*fontx,y0,fuelStr);
+    void drawCircularBarGauge(int xo, int yo, int rad, double maxValue, double currentValue) {
+        double initAngle = M_PI*(1.0/4.0);
+        double finalAngle = M_PI*(7.0/4.0);
+        double currentAngle = (currentValue/maxValue)*(finalAngle-initAngle)+initAngle;
+        for (double angle = initAngle; angle<=currentAngle; angle = angle + .001){
+            double lin = (currentValue / maxValue) / 2.0;
+            u8g2.drawLine(xo+int(rad*lin*cos(angle)),yo+int(rad*lin*sin(angle)),xo+int(rad*cos(angle)),yo+int(rad*sin(angle)));
     }
 }
 
-void drawLapTime(int *lapTime){
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    for (int i=0;i<3;i++) {
-        clearBox(screenx-fontx*8 +fontx*i*3,screeny-fonty,fontx*2,fonty);
+    void drawGear(String gear){
+        int w = 45;
+        int h = 68;
+        int x0 = screenx/2-w/2;
+        int y0 = screeny/2-21;
+        clearBox(x0,y0,w,h);
+        u8g2.setFont(u8g2_font_logisoso58_tf);
+        u8g2.drawStr(x0+4,y0+63,gear.c_str());
+        u8g2.drawFrame(x0,y0,w,h);
     }
-    if (lapTime[0]<10) {
-        u8g2.drawStr(screenx-fontx*7,screeny,String(lapTime[0]).c_str());
-    } else {
-        u8g2.drawStr(screenx-fontx*8,screeny,String(lapTime[0]).c_str());
+
+    void drawMph(int mph) {
+        int x0 = 12;
+        int y0 = screeny/2+20;
+        clearBox(x0,y0-30,40,31);
+        u8g2.setFont(u8g2_font_logisoso30_tr);
+        if (mph<10) {
+            u8g2.drawStr(x0+20,y0,String(mph).c_str());
+        } else {
+            u8g2.drawStr(x0,y0,String(mph).c_str());
+        }
+        u8g2.sendBuffer();
     }
-    if (lapTime[1]<10) {
-        u8g2.drawStr(screenx-fontx*5,screeny,"0");
-        u8g2.drawStr(screenx-fontx*4,screeny,String(lapTime[1]).c_str());
+
+    void drawRpm(int rpm) {
+        u8g2.setDrawColor(0);
+        u8g2.drawBox(110,0,150,31);
+        u8g2.drawBox(150,0,fontx*3,fonty*2+1);
+        u8g2.drawDisc(screenx-55,screeny/2,46);
+        u8g2.setDrawColor(1);
+        u8g2.setFont(u8g2_font_logisoso30_tr);
+        if (rpm<10000) {
+            u8g2.drawStr(130,30,String(rpm/1000).c_str());
+        } else {
+            u8g2.drawStr(110,30,String(rpm/1000).c_str());
+        }
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        u8g2.drawStr(150,fonty,String(rpm%1000).c_str());
+        drawGauge(screenx-55,screeny/2,45,12000.0,rpm*1.0);
+        u8g2.sendBuffer();
     }
-    else {
-        u8g2.drawStr(screenx-fontx*5,screeny,String(lapTime[1]).c_str());
+
+    void drawCoolantTemp(int coolantTemp) {
+        int x0 = (coolantTemp>=100) ? 0 : fontx;
+        int y0 = screeny-fonty;
+        clearBox(x0,y0-fonty,fontx*(2+(coolantTemp/100)),fonty);
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        u8g2.drawStr(x0,y0,String(coolantTemp).c_str());
     }
-    if (lapTime[2]<10) {
-        u8g2.drawStr(screenx-fontx*2,screeny,"0");
-        u8g2.drawStr(screenx-fontx*1,screeny,String(lapTime[2]).c_str());
+    void drawEngineTemp(int engineTemp) {
+        int x0 = (engineTemp>=100) ? 0 : fontx;
+        int y0 = screeny;
+        clearBox(x0,y0-fonty,fontx*(2+(engineTemp/100)),fonty);
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        u8g2.drawStr(x0,y0,String(engineTemp).c_str());
     }
-    else {
-        u8g2.drawStr(screenx-fontx*2,screeny,String(lapTime[2]).c_str());
+
+    void drawFuel(int fuelLevel) {
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        int x0 = (screenx/2)-fontx*(9/2);
+        int y0 = screeny;
+        clearBox(x0,y0-fonty,fontx*3,fonty);
+        const char *fuelStr = String(fuelLevel).c_str();
+        if (fuelLevel>=100){
+            u8g2.drawStr(x0,y0,fuelStr);
+        } else if (fuelLevel>10) {
+            u8g2.drawStr(x0+fontx,y0,fuelStr);
+        } else {
+            u8g2.drawStr(x0+2*fontx,y0,fuelStr);
+        }
     }
-}
 
-void drawVoltage(double battVoltage) {
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    int x0 = screenx-fontx*5 + fontx/2;
-    int y0 = screeny-fonty;
-    clearBox(x0,y0-fonty,fontx*4 - fontx/2, fonty);
-    u8g2.setFontMode(1);
-    int tensOffset = (battVoltage<10) ? fontx : 0;
-    u8g2.drawStr(x0+tensOffset,y0,String(int(battVoltage)).c_str());
-    int firstDecimal = int(battVoltage*10.0) % 10;
-    u8g2.drawStr(x0+fontx*3-fontx/2,y0,String(firstDecimal).c_str());
-    u8g2.drawStr(x0+fontx*2-fontx/4,y0,".");
-    u8g2.setFontMode(0);
+    void drawLapTime(int *lapTime){
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        for (int i=0;i<3;i++) {
+            clearBox(screenx-fontx*8 +fontx*i*3,screeny-fonty,fontx*2,fonty);
+        }
+        if (lapTime[0]<10) {
+            u8g2.drawStr(screenx-fontx*7,screeny,String(lapTime[0]).c_str());
+        } else {
+            u8g2.drawStr(screenx-fontx*8,screeny,String(lapTime[0]).c_str());
+        }
+        if (lapTime[1]<10) {
+            u8g2.drawStr(screenx-fontx*5,screeny,"0");
+            u8g2.drawStr(screenx-fontx*4,screeny,String(lapTime[1]).c_str());
+        }
+        else {
+            u8g2.drawStr(screenx-fontx*5,screeny,String(lapTime[1]).c_str());
+        }
+        if (lapTime[2]<10) {
+            u8g2.drawStr(screenx-fontx*2,screeny,"0");
+            u8g2.drawStr(screenx-fontx*1,screeny,String(lapTime[2]).c_str());
+        }
+        else {
+            u8g2.drawStr(screenx-fontx*2,screeny,String(lapTime[2]).c_str());
+        }
+    }
 
-}
+    void drawVoltage(double battVoltage) {
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        int x0 = screenx-fontx*5 + fontx/2;
+        int y0 = screeny-fonty;
+        clearBox(x0,y0-fonty,fontx*4 - fontx/2, fonty);
+        u8g2.setFontMode(1);
+        int tensOffset = (battVoltage<10) ? fontx : 0;
+        u8g2.drawStr(x0+tensOffset,y0,String(int(battVoltage)).c_str());
+        int firstDecimal = int(battVoltage*10.0) % 10;
+        u8g2.drawStr(x0+fontx*3-fontx/2,y0,String(firstDecimal).c_str());
+        u8g2.drawStr(x0+fontx*2-fontx/4,y0,".");
+        u8g2.setFontMode(0);
 
-void drawBackground() {
-    int screenx = 240;
-    int screeny = 128;
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    int fontx = 12;
-    int fonty = 15;
+    }
 
-    u8g2.drawFrame(screenx/3-4,screeny/2-32,46,68);
-    
-    u8g2.drawStr(40,fonty,"mph");
-    
-    u8g2.drawStr(screenx - fontx*3,fonty,"rpm");
+    void drawBackground() {
+        int screenx = 240;
+        int screeny = 128;
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        int fontx = 12;
+        int fonty = 15;
 
-    u8g2.drawStr(fontx*3,screeny-fonty,"C");
+        u8g2.drawFrame(screenx/3-4,screeny/2-32,46,68);
+        
+        u8g2.drawStr(40,fonty,"mph");
+        
+        u8g2.drawStr(screenx - fontx*3,fonty,"rpm");
 
-    u8g2.drawStr(fontx*3,screeny,"C");
-    
-    u8g2.drawStr((screenx/2),screeny,"%");
+        u8g2.drawStr(fontx*3,screeny-fonty,"C");
 
-    u8g2.drawStr(screenx-fontx*6,screeny,":");
+        u8g2.drawStr(fontx*3,screeny,"C");
+        
+        u8g2.drawStr((screenx/2),screeny,"%");
 
-    u8g2.drawStr(screenx-fontx*3,screeny,":");
+        u8g2.drawStr(screenx-fontx*6,screeny,":");
 
-    u8g2.drawStr(fontx*4,screeny/2+fonty/2,"V");
-}
+        u8g2.drawStr(screenx-fontx*3,screeny,":");
 
-void circularGaugeLayout() {
-    int mph = 69;
-    String gear = "3";
-    int rpm = 11420;
-    int coolantTemp = 109;
-    int engineTemp = 120;
-    int fuelLevel = 42;
-    int lapTime[3] = {1,23,45};
-    double battVoltage = 11.572345;
-    
+        u8g2.drawStr(fontx*4,screeny/2+fonty/2,"V");
+    }
 
-    u8g2.clearBuffer();
-    
-    drawBackground();
+    void circularGaugeLayout() {
+        int mph = 69;
+        String gear = "3";
+        int rpm = 11420;
+        int coolantTemp = 109;
+        int engineTemp = 120;
+        int fuelLevel = 42;
+        int lapTime[3] = {1,23,45};
+        double battVoltage = 11.572345;
+        
 
-    
-    drawGear(gear);
-    drawMph(mph);
-    drawRpm(rpm);
-    drawCoolantTemp(coolantTemp);
-    drawEngineTemp(engineTemp);
-    drawFuel(fuelLevel);
-    drawLapTime(lapTime);
-    drawVoltage(battVoltage);
-    u8g2.sendBuffer();
-}
+        u8g2.clearBuffer();
+        
+        drawBackground();
 
-void drawBackground2() {
+        
+        drawGear(gear);
+        drawMph(mph);
+        drawRpm(rpm);
+        drawCoolantTemp(coolantTemp);
+        drawEngineTemp(engineTemp);
+        drawFuel(fuelLevel);
+        drawLapTime(lapTime);
+        drawVoltage(battVoltage);
+        u8g2.sendBuffer();
+    }
 
-    int screenx = 240;
-    int screeny = 128;
-    u8g2.setFont(u8g2_font_VCR_OSD_mf);
-    int fontx = 12;
-    int fonty = 15;
-    
-    u8g2.drawStr(52,screeny/2+20,"mph");
-    
-    u8g2.drawStr(fontx*3,screeny-fonty,"C");
+    void drawBackground2() {
 
-    u8g2.drawStr(fontx*3,screeny,"C");
-    
-    u8g2.drawStr((screenx/2)-fontx,screeny,"%");
+        int screenx = 240;
+        int screeny = 128;
+        u8g2.setFont(u8g2_font_VCR_OSD_mf);
+        int fontx = 12;
+        int fonty = 15;
+        
+        u8g2.drawStr(52,screeny/2+20,"mph");
+        
+        u8g2.drawStr(fontx*3,screeny-fonty,"C");
 
-    u8g2.drawStr(screenx-fontx*6,screeny,":");
+        u8g2.drawStr(fontx*3,screeny,"C");
+        
+        u8g2.drawStr((screenx/2)-fontx,screeny,"%");
 
-    u8g2.drawStr(screenx-fontx*3,screeny,":");
+        u8g2.drawStr(screenx-fontx*6,screeny,":");
 
-    u8g2.drawStr(screenx-fontx,screeny-fonty,"V");
+        u8g2.drawStr(screenx-fontx*3,screeny,":");
 
-}
+        u8g2.drawStr(screenx-fontx,screeny-fonty,"V");
 
-/* void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000) {
+    }
+
+    void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000) {
     int padding = 2;
     int xStart = padding;
     int yStart = padding;
@@ -801,7 +878,7 @@ void drawBackground2() {
     u8g2.drawStr(xStart+width+3*newFontx+xOff-6,yStart+height-yOff,String((current%1000)/100).c_str());
     u8g2.sendBuffer();
 }
-*/
+
 
 class boxGauge
     {
@@ -890,8 +967,8 @@ class statusMessage
     public:
     int x0 = 0; // the starting cordinates for the status message object
     int y0 = 0;
-    uint8_t* messageFont = u8g2_font_5x7_tr;
-    uint8_t* statusFont = messageFont;
+    const uint8_t* messageFont = u8g2_font_5x7_tr;
+    const uint8_t* statusFont = messageFont;
     //enum displayItem {date,GPS_Status,loggingStatusMessage}; // maybe best to make these functions?
     
     private:
@@ -923,7 +1000,7 @@ class statusMessage
         status_y0 += status_yOffset;
     }
 
-    void initialize(const char * message, const char * status) // performs all formatting calculations call this once
+    void initialize(const char * message, const char * status, int status_xOffset = 0,int status_yOffset = 0) // performs all formatting calculations call this once
     {
         // draw the message
         u8g2.setFont(messageFont);
@@ -933,6 +1010,7 @@ class statusMessage
         messageHeight = messageAscent - messageDecent; // the area the message can occupy
         y1 = y0 + messageDecent; // find the absolute bottom of the message
         y00 = y0 - messageAscent; // the upper corner of the message
+        clearBox(x0,y00,messageWidth,messageHeight); // clear the area just for good measure
         u8g2.drawStr(x0,y0,message);// draw the message
         
         // draw the initial status
@@ -942,10 +1020,11 @@ class statusMessage
         statusWidth = u8g2.getStrWidth(status);
         statusHeight = statusAscent - statusDecent; // the area the message can occupy
         statusTop = y0 - statusAscent; // the upper corner of the message
-        status_x0 += x0 + messageWidth; // start the status text at the end of the message
-        status_y0 += y0;
+        status_x0 = x0 + messageWidth + status_xOffset; // start the status text at the end of the message
+        status_y0 = y0 + status_yOffset;
         u8g2.drawStr(status_x0,status_y0,status);
     }
+    
     void display(const char * status)
     {
         clearBox(status_x0,statusTop,statusWidth,statusHeight);
@@ -1005,10 +1084,11 @@ class digitalGauge
     int y0 = screeny/2+20;
     float maxVal = 199;
 
-    uint8_t* digitFont = u8g2_font_logisoso30_tr;
-    uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
+    const uint8_t* digitFont = u8g2_font_logisoso30_tr;
+    const uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
     
     private:
+    bool isInitialized = false;
     float lastVal = 0;
     int maxDigitWidth = 0;
     int x0unit = 0;
@@ -1024,6 +1104,30 @@ class digitalGauge
     uint8_t th = 0;
     
     public:
+    
+    digitalGauge(){}; // default constructor
+    
+    // functions written in diffrent context, no longer needed because initialization should always be performed
+    /*
+    digitalGauge(float maxDisplayVal, int xStart, int yStart)
+    {
+        // transfer the values obtained from the constructor into the class variables
+        maxVal = maxDisplayVal;
+        x0 = xStart;
+        y0 = yStart;
+        initializeFormatting(); // perform the formatting calculations so we can imediately call the functions below
+    }
+    digitalGauge(float maxDisplayVal, int xStart, int yStart, char* displayFormat)
+    {
+        // transfer the values obtained from the constructor into the class variables
+        maxVal = maxDisplayVal;
+        x0 = xStart;
+        y0 = yStart;
+        strcpy(printFormat,displayFormat);
+        initializeFormatting(); // perform the formatting calculations so we can imediately call the functions below
+    }
+*/
+    
     int xEnd()
     {
         u8g2.setFont(unitFont); // set the font to the unit font so the appropriate width can be calculated
@@ -1055,42 +1159,108 @@ class digitalGauge
     }
     void updateRowArea()
     {
-        u8g2.updateDisplayArea(0,ty,30,th); // only update the area required tile cordinates are 8 pixel blocks each
+      u8g2.updateDisplayArea(0,ty,30,th); // only update the area required tile cordinates are 8 pixel blocks each
     }
     void display(float val)
     {
-        if(lastVal == val)
+        if(isInitialized == false) // if the display has not yet been initialized
         {
-            return; // don't do anything if no updates need to be made to save time
+          // initializing the display here is doing funny things
+          // displays MPH twice on bootup of insight screen
+          //initialize(val); // initialize the display
+          return; // dont do anything more
+        }
+        if( abs(((lastVal - val) * 200) / maxVal) < 1) // if the diffrence between the values is less than .5% 
+        {
+          return; // don't do anything if no updates need to be made to save time
         }
         lastVal = val; // otherwise save the latest value;
+        // if(val > maxVal)
         updateRequest = true;
         clearBox(x0,digit_y0,maxDigitWidth,digitHeight);
         u8g2.setFont(digitFont);
-        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        char digitString [16] = "Error"; // make it error so its ovbious if theres a problem
         sprintf(digitString,printFormat,val); // generate a string with the digits in it
         #define currentWidth u8g2.getStrWidth(digitString) // use the current width to set the location of the digits
-        #define digit_x0 x0+maxDigitWidth-currentWidth
+        #define digit_x0 x0 + maxDigitWidth - currentWidth // this always places the digit end in the same location
         u8g2.drawStr(digit_x0,y0,digitString);
     }
 
-    void initialize(float val)
+    private:
+     void initializeFormatting() // perform the standard initialization calculations for formatting
     {
         u8g2.setFont(digitFont);
-        char digitString [10] = "Error"; // make it error so its ovbious if theres a problem
+        char digitString [16] = "Error"; // make it error so its ovbious if theres a problem
         sprintf(digitString,printFormat,maxVal); // generate a string with the digits in it
         maxDigitWidth = u8g2.getStrWidth(digitString);
-        digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        //digitHeight = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+        digitHeight = u8g2.getAscent(); // digits dont tend to extend below - u8g2.getDescent(); // the area the digit can occupy
         digit_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
         u8g2.setFont(unitFont);
         x0unit = x0 + maxDigitWidth + xUnitOffset;
         y0unit = y0 - yUnitOffset; 
         findActiveArea();
+    }
+    
+    public:
+    
+    void displayUnit()
+    {
         u8g2.drawStr(x0unit,y0unit,unitText); // draw the unit text
+    }
+    
+
+    void initialize(float val) // preserves backwards compatibility
+    {
+        initializeFormatting(); // perform the formatting calculations
+        isInitialized = true;
+        displayUnit(); // display the unit
         //u8g2.drawFrame(tx*8,ty*8,tw*8,th*8);
         display(val);
     }
+    void initializeSmallGauge(int x, int y, float maximumVal, const char * format,const char * unit)
+    {
+        x0 = x; y0 = y; maxVal = maximumVal;
+        strcpy(printFormat,format);
+        strcpy(unitText,unit);
+        digitFont = u8g2_font_6x12_mn;
+        unitFont = u8g2_font_5x7_tr;
+        initialize(maxVal);
+    }
+    void initializeMediumGauge(int x, int y, float maximumVal, const char * format,const char * unit)
+    {
+        x0 = x; y0 = y; maxVal = maximumVal;
+        strcpy(printFormat,format);
+        strcpy(unitText,unit);
+        digitFont = u8g2_font_VCR_OSD_mf;
+        unitFont = u8g2_font_6x12_tr;
+        initialize(maxVal);
+    }
+    void initializeLargeGauge(float val)
+    {
+      digitFont = u8g2_font_logisoso30_tr;
+      unitFont = u8g2_font_VCR_OSD_mf;
+      initialize(val);
+    }
+    void initializeLargeGauge(int x, int y, float maximumVal, const char * format,const char * unit)
+    {
+        x0 = x; y0 = y; maxVal = maximumVal;
+        strcpy(printFormat,format);
+        strcpy(unitText,unit);
+        initializeLargeGauge(maximumVal);
+    }
+    void initializeLargeGauge(int x, int y, float maximumVal, const char * format,const char * unit,const uint8_t* font)
+    {
+        x0 = x; y0 = y; maxVal = maximumVal;
+        digitFont = u8g2_font_logisoso30_tr;
+        unitFont = font;
+        strcpy(printFormat,format);
+        strcpy(unitText,unit);
+        initialize(maximumVal);
+    }
+
 };
+
 
 class button
 {
@@ -1099,8 +1269,9 @@ class button
     int y0 = 0;
     int height = 0;
     int width = 0;
-    uint8_t* textFont = u8g2_font_VCR_OSD_mf;
+    const uint8_t* textFont = u8g2_font_VCR_OSD_mf; // note const uint8_t* is a pointer to a variable of const uint_8t and can still be modified
     char message[32] = "DEFAULT";
+    bool useTopCordinate = false;
 
     private:
     bool isActive = false;
@@ -1116,12 +1287,12 @@ class button
     // possible additions might be to shade the button if it is being pressed
 
     public:
-    void setText(char* myMessage)
+    void setText(const char* myMessage)
     {
         strcpy(message,myMessage);
     }
-
-    void initalize()
+    //void initialize
+    void initialize()
     {
         // calculate the appropriate values to draw and format the button
 
@@ -1130,8 +1301,13 @@ class button
         u8g2.setFont(textFont);
         width = u8g2.getStrWidth(message);
         height = u8g2.getAscent() - u8g2.getDescent(); // the area the digit can occupy
+
         int text_y0 = y0 - u8g2.getAscent(); // the upper corner of the digit
-        
+        if(useTopCordinate)
+        {
+            text_y0 = y0;
+            y0 = y0 + u8g2.getAscent(); // shift the start of the text down by the rise in the text
+        }
         // todo there should be a variable to adjust padding or the amount of space on the edge
         int xPadding = 1;
         box_x0 = x0 - xPadding;
@@ -1177,11 +1353,13 @@ class button
         if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
         // check to see if the tap is inside the button box
             if(tap.isPressed()){ // if the user is pressing the button
-                fillButton();
+            //if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){
+                    fillButton();
                 //Serial.println("pressed");
                 updateRequest = true;
             }
             if(tap.isTapped()){ // if the user tapped the button
+             //if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
                 Serial.println("we got it!");
                 draw();
                 updateRequest = true;
@@ -1191,13 +1369,96 @@ class button
             }
         }
         else{
+            if(tap.isPressed()){ // if we are outside the button box but still pressing the screen
             draw();
+            }
         }
 
     }
+    /*void read() // this is the gamma stage of detecting presses in a more sophisticated way
+    // but for now it doesnt work as well
+    {
+        //if((tap.x >= box_x0) && (tap.x <= box_x1) && (tap.y >= box_y0) && (tap.y <= box_y1)) {
+          
+        // check to see if the tap is inside the button box
+            //if(tap.isPressed()){ // if the user is pressing the button
+            if(tap.isAreaPressed(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){
+                    fillButton();
+                //Serial.println("pressed");
+                updateRequest = true;
+            }
+            //if(tap.isTapped()){ // if the user tapped the button
+             if(tap.isAreaTapped(((box_x0 + box_x1)/2), ((box_y0 + box_y1)/2),40,20)){ // checking area taped should be more accurate but it is in gamma stage
+                Serial.println("we got it!");
+                draw();
+                updateRequest = true;
+                if(actionAssigned){ // make sure there is an action assigned before runing anything
+                    actionFunction(); // Run the function that we previously associated with the button
+                }
+            }
+        //}
+        else{
+            if(tap.isPressed()){ // if we are outside the button box but still pressing the screen
+            draw();
+            }
+        }
+
+    }
+    */
     
 };
 
+void changeLogging_state()
+{
+    loggingActive = !loggingActive;
+}
+
+// objects used for menu screen
+button M3ScreenButton;
+button scRacingScreenButton;
+button insightScreenButton;
+void initializeInsightScreen(); // need function declaration before being called in menu screen
+void initializeMenuScreen()
+{
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+    u8g2.drawStr(32,18,"Menu");
+    u8g2.drawLine(0,19,240,19);
+    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+    M3ScreenButton.x0 = 10;
+    M3ScreenButton.y0 = 40;
+    M3ScreenButton.setText("M3 Screen");
+    M3ScreenButton.initialize();
+    M3ScreenButton.assignAction(&initializeEaganM3_Screen);
+    insightScreenButton.x0 = 10;
+    insightScreenButton.y0 = 70;
+    insightScreenButton.setText("Insight Screen");
+    insightScreenButton.initialize();
+    insightScreenButton.assignAction(&initializeInsightScreen);
+    //insightScreenButton.assignAction(&initializeEaganInsightScreen);
+    scRacingScreenButton.x0 = 10;
+    scRacingScreenButton.y0 = 100;
+    scRacingScreenButton.setText("USC Racing Screen");
+    scRacingScreenButton.initialize();
+    scRacingScreenButton.assignAction(&initializeBakerFSAEscreen);
+    // u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+    // u8g2.drawStr(0,40,"Device Settings");
+    // u8g2.drawStr(0,60,"Option 2");
+    // u8g2.drawStr(0,80,"Acceleration Tests");
+    u8g2.sendBuffer();
+    // u8g2.setDrawColor(1); // reset the draw color back to the default
+    screenPointer = &menuScreen; // switch to the menu screen from now on
+}
+
+void menuScreen()
+{
+    tap.detect();
+    M3ScreenButton.read();
+    insightScreenButton.read();
+    scRacingScreenButton.read();
+}
+
+//objects used for M3 screen
 boxGauge tachometer;
 digitalGauge speed;
 digitalGauge xAcel;
@@ -1209,22 +1470,15 @@ statusMessage loggingStatusMessage;
 statusMessage date;
 button logButton;
 button menuButton;
-
-void changeLogging_state()
-{
-    loggingActive = !loggingActive;
-}
-
-
-void initializeEaganM3_Screen(int myRPM = 0)
+void initializeEaganM3_Screen()
 {
     u8g2.clearBuffer();
+    rpmPerPulse = 20; // the M3 uses 20 pulses per RPM
     GPS_status.y0 = 8;
     GPS_status.initialize("GPS: ","Disconnected");
     loggingStatusMessage.y0 = 8;
     loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
-    loggingStatusMessage.offsetStatus(2);
-    loggingStatusMessage.initialize("LOG:","sdErr");
+    loggingStatusMessage.initialize("LOG:","sdErr",2);
     date.y0 = 8;
     date.x0 = loggingStatusMessage.xEnd() + 5;
     date.initialize("",constructDateTime(3).c_str());
@@ -1233,28 +1487,33 @@ void initializeEaganM3_Screen(int myRPM = 0)
     tachometer.redLine = 7500;
     tachometer.max = 8500;
     tachometer.cutoff = 2000;
+    tachometer.height = 25;
     //u8g2.print("gps not functional");
-    tachometer.drawBoxGauge(myRPM);
+    tachometer.drawBoxGauge(engRPM);
     //digitalGauge speed;
+    speed.y0 = 84;
     strcpy(speed.printFormat,"%3.0f\0");
-    speed.initialize(88);
+    speed.initializeLargeGauge(88);
     //digitalGauge xAcel;
-    xAcel.maxVal = -99.0;
-    xAcel.x0 = speed.xEnd();
-    //xAcel.y0 = 120; 
-    strcpy(xAcel.unitText,"xgs\0");
-    strcpy(xAcel.printFormat,"%+2.0f\0");
-    xAcel.unitFont = u8g2_font_t0_12_tf;
+    // xAcel.maxVal = -99.0;
+    // xAcel.y0 = 84;
+    // xAcel.x0 = speed.xEnd();
+    // //xAcel.y0 = 120; 
+    // strcpy(xAcel.unitText,"xgs\0");
+    // strcpy(xAcel.printFormat,"%+2.0f\0");
+    // xAcel.unitFont = u8g2_font_t0_12_tf;
     xAcel.unitLocation(1,10);
-    xAcel.initialize(99);
+    xAcel.initializeLargeGauge(speed.xEnd(),84,-99,"%+2.0f","xgs",u8g2_font_t0_12_tf);
     //digitalGauge yAcel;
-    yAcel.maxVal = -99;
-    strcpy(yAcel.printFormat,"%+2.0f\0");
-    yAcel.x0 = xAcel.xEnd();
-    strcpy(yAcel.unitText,"ygs\0");
-    yAcel.unitFont = u8g2_font_t0_12_tf;
+    // yAcel.maxVal = -99;
+    // strcpy(yAcel.printFormat,"%+2.0f\0");
+    // yAcel.y0 = 84;
+    // yAcel.x0 = xAcel.xEnd();
+    // strcpy(yAcel.unitText,"ygs\0");
+    // yAcel.unitFont = u8g2_font_t0_12_tf;
     yAcel.unitLocation(1,10);
-    yAcel.initialize(99);
+    yAcel.unitLocation(1,10);
+    yAcel.initializeLargeGauge(xAcel.xEnd(),84,-99,"%+2.0f","ygs",u8g2_font_t0_12_tf);
     lat.y0 = speed.yEndBottom() + 15;
     lat.digitFont = u8g2_font_6x12_mn;
     lat.unitFont = u8g2_font_5x7_tr;
@@ -1273,20 +1532,22 @@ void initializeEaganM3_Screen(int myRPM = 0)
     logButton.x0 = 190;
     logButton.y0 = 120;
     logButton.setText("LOG");
-    logButton.initalize();
+    logButton.initialize();
     logButton.assignAction(&changeLogging_state);
     menuButton.x0 = 20;
     menuButton.y0 = 120;
     menuButton.setText("MENU");
-    menuButton.initalize();
+    menuButton.initialize();
+    menuButton.assignAction(&initializeMenuScreen);
     u8g2.sendBuffer();
+    screenPointer = &EaganM3_Screen; // change the screen pointer to display the M3screen now
 }
-void EaganM3_Screen(int myRPM = 0)
+
+void EaganM3_Screen()
 {
-    updateRequest = false;
-    tap.detect();
+    // updateRequest = false; // now in the main display screen function
+    // tap.detect();
     logButton.read();
-    menuButton.read();
     tachometer.display(engRPM);
     GPS_status.displayGPS_status();
     loggingStatusMessage.displayLog_status();
@@ -1296,19 +1557,424 @@ void EaganM3_Screen(int myRPM = 0)
     yAcel.display(yAccel/10);
     lat.display(latitude);
     lon.display(longitude);
-    
+    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the m3 screen function will run where it left off
     
     //speed.updateArea();
-    if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
-    {
-    u8g2.sendBuffer();
-    lastDisplayUpdate = millis();
-    }
 }
-//void initilizeBoxGauge
-// void displayGPSbootup()
-// {
-//     u8g2.setCursor(32,40);
-//     u8g2.print("gps not functional");
 
+// additional objects used by the insight screen
+digitalGauge oilPressGauge;
+digitalGauge AFR;
+digitalGauge TPSval;
+digitalGauge MAPval;
+digitalGauge turbinePressureGauge;
+digitalGauge knock;
+digitalGauge fuelPressureGauge;
+digitalGauge BatteryCurrent;
+digitalGauge BatteryVoltage;
+
+void insightScreen()
+{
+    // updateRequest = false; // now in the main display screen function
+    // tap.detect();
+    logButton.read();
+    tachometer.display(engRPM);
+    GPS_status.displayGPS_status();
+    loggingStatusMessage.displayLog_status();
+    date.displayDate();
+    speed.display(gpsSpeed);
+    AFR.display(AirFuelRatio/100.0);
+    knock.display(knockValue/10.0);
+    oilPressGauge.display(oilPressure);
+    TPSval.display(throttlePosition);
+    MAPval.display(MAP);
+    turbinePressureGauge.display(turbinePressure);
+    fuelPressureGauge.display(fuelPressure);
+    BatteryCurrent.display((hybridBatteryCurrent/100));
+    BatteryVoltage.display(hybridBatteryVoltage);
+    xAcel.display(xAccel/10); // display acceleration in 10ths of a G
+    yAcel.display(yAccel/10);
+    //lat.display(latitude);
+    //lon.display(longitude);
+    menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the current screen function will run where it left off
+    
+    //speed.updateArea();
+}
+void initializeInsightScreen()
+{
+    u8g2.clearBuffer();
+    rpmPerPulse = 40; // the insight uses 36 pulses per RPM
+    GPS_status.y0 = 8;
+    GPS_status.initialize("GPS: ","Disconnected");
+    loggingStatusMessage.y0 = 8;
+    loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+    loggingStatusMessage.initialize("LOG:","sdErr",2);
+    date.y0 = 8;
+    date.x0 = loggingStatusMessage.xEnd() + 5;
+    date.initialize("",constructDateTime(3).c_str());
+    tachometer.yStart = 12;
+    tachometer.redLine = 5800;
+    tachometer.max = 6500;
+    tachometer.cutoff = 2000;
+    tachometer.height = 15;
+    tachometer.drawBoxGauge(engRPM);
+    //strcpy(speed.printFormat,"%3.0f\0");
+    speed.y0 = 74;
+    speed.initializeLargeGauge(88);
+    AFR.initializeMediumGauge(speed.xEnd()+5,60,22.0,"%3.1f","AFR");
+    knock.initializeMediumGauge(speed.xEnd()+5,78,22.0,"%3.1f","KNK");
+    xAcel.initializeMediumGauge(190,50,-99,"%+2.0f","xg");
+    yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg");
+    oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
+    TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
+    MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa");
+    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,15,"%3.0f","psi");
+    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi");
+    BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
+    BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
+    // xAcel.maxVal = -99.0;
+    // xAcel.x0 = speed.xEnd();
+    // xAcel.y0 = 74;
+    // strcpy(xAcel.unitText,"xgs\0");
+    // strcpy(xAcel.printFormat,"%+2.0f\0");
+    // xAcel.unitFont = u8g2_font_t0_12_tf;
+    // xAcel.unitLocation(1,10);
+    // xAcel.initialize(99);
+    // yAcel.maxVal = -99;
+    // strcpy(yAcel.printFormat,"%+2.0f\0");
+    // yAcel.y0 = 74;
+    // yAcel.x0 = xAcel.xEnd();
+    // strcpy(yAcel.unitText,"ygs\0");
+    // yAcel.unitFont = u8g2_font_t0_12_tf;
+    // yAcel.unitLocation(1,10);
+    // yAcel.initialize(99);
+    // lat.y0 = speed.yEndBottom() + 15;
+    // lat.digitFont = u8g2_font_6x12_mn;
+    // lat.unitFont = u8g2_font_5x7_tr;
+    // strcpy(lat.unitText,"*\0");
+    // strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
+    // lat.maxVal = -100.1234;
+    // lat.initialize(-100.1234);
+    // lon.y0 = speed.yEndBottom() + 15;
+    // lon.digitFont = u8g2_font_6x12_mn;
+    // lon.unitFont = u8g2_font_5x7_tr;
+    // lon.x0 = lat.xEnd() + 30;
+    // strcpy(lon.unitText,"*\0");
+    // strcpy(lon.printFormat,"%6.4f\0");
+    // lon.maxVal = -100.1234;
+    // lon.initialize(-100.1234);
+    logButton.x0 = 200;
+    logButton.y0 = 127;
+    logButton.setText("LOG");
+    logButton.initialize();
+    logButton.assignAction(&changeLogging_state);
+    menuButton.x0 = 1;
+    menuButton.y0 = 127;
+    menuButton.setText("MENU");
+    menuButton.initialize();
+    menuButton.assignAction(&initializeMenuScreen);
+    u8g2.sendBuffer();
+    screenPointer = &insightScreen; // change the screen pointer to display the insightscreen now
+}
+// void menuScreen()  // legacy menu screen
+// {
+//     screenPointer = &menuScreen; // switch to the menu screen from now on
+//     switch (currentScreen)
+//     {
+//     case menu:
+//         if(updateScreen){
+//             u8g2.clearBuffer();
+//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+//             u8g2.drawStr(32,18,"Menu");
+//             u8g2.drawLine(0,19,240,19);
+//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+//             u8g2.drawStr(0,40,"Device Settings");
+//             u8g2.drawStr(0,60,"Option 2");
+//             u8g2.drawStr(0,80,"Acceleration Tests");
+//             u8g2.sendBuffer();
+//             u8g2.setDrawColor(1); // reset the draw color back to the default
+//             updateScreen = false;
+//         }
+//         p = ts.getPoint();
+//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+//             modifyPointToScreen();
+//             Serial.print(p.x);
+//             Serial.print(',');
+//             Serial.print(p.y);
+//             Serial.print(',');
+//             Serial.println(p.z);
+//             if(abs(p.y-30) < 10 ){
+//                 currentScreen = settings;
+//                 updateScreen = true;
+//             }
+//         }
+//         break;
+//         case settings:
+//         if(updateScreen){
+//             u8g2.clearBuffer();
+//             u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+//             u8g2.drawStr(5,18,"<");
+//             u8g2.drawStr(32,18,"Device Settings");
+//             u8g2.drawLine(0,19,240,19);
+//             ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+//             u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
+//             u8g2.drawStr(0,40,"Calibrate Screen");
+//             u8g2.drawStr(0,60,"Logging Options");
+//             u8g2.drawStr(0,80,"COM Settings");
+//             u8g2.sendBuffer();
+//             u8g2.setDrawColor(1); // reset the draw color back to the default
+//             updateScreen = false;
+//         }
+//         p = ts.getPoint();
+//         if (p.z > MINPRESSURE && p.z < MAXPRESSURE) {
+//             modifyPointToScreen();
+//             Serial.print(p.x);
+//             Serial.print(',');
+//             Serial.print(p.y);
+//             Serial.print(',');
+//             Serial.println(p.z);
+//             if(abs(p.y-30) < 10 ){ //
+//                 currentScreen = settings;
+//                 updateScreen = true;
+//             }
+//              if(abs(p.y-5) < 8 ){ //
+//                 currentScreen = menu;
+//                 updateScreen = true;
+//             }
+//         }
+//         break;
+//     }
 // }
+
+// old class system to display the screens
+class myM3Screen
+{
+    private:
+        bool initialized = false; // track if the screen has been initialized
+        boxGauge tachometer;
+        digitalGauge speed;
+        digitalGauge xAcel;
+        digitalGauge yAcel;
+        digitalGauge lat;
+        digitalGauge lon;
+        statusMessage GPS_status;
+        statusMessage loggingStatusMessage;
+        statusMessage date;
+        button logButton;
+        button menuButton;
+    public:
+        void initialize()
+        {
+            u8g2.clearBuffer();
+            GPS_status.y0 = 8;
+            GPS_status.initialize("GPS: ","Disconnected");
+            loggingStatusMessage.y0 = 8;
+            loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+            loggingStatusMessage.initialize("LOG:","sdErr",2);
+            date.y0 = 8;
+            date.x0 = loggingStatusMessage.xEnd() + 5;
+            date.initialize("",constructDateTime(3).c_str());
+            //boxGauge tachometer;
+            tachometer.yStart = 12;
+            tachometer.redLine = 7500;
+            tachometer.max = 8500;
+            tachometer.cutoff = 2000;
+            //u8g2.print("gps not functional");
+            tachometer.drawBoxGauge(1000);
+            //digitalGauge speed;
+            strcpy(speed.printFormat,"%3.0f\0");
+            speed.initialize(88);
+            //digitalGauge xAcel;
+            xAcel.maxVal = -99.0;
+            xAcel.x0 = speed.xEnd();
+            //xAcel.y0 = 120; 
+            strcpy(xAcel.unitText,"xgs\0");
+            strcpy(xAcel.printFormat,"%+2.0f\0");
+            xAcel.unitFont = u8g2_font_t0_12_tf;
+            xAcel.unitLocation(1,10);
+            xAcel.initialize(99);
+            //digitalGauge yAcel;
+            yAcel.maxVal = -99;
+            strcpy(yAcel.printFormat,"%+2.0f\0");
+            yAcel.x0 = xAcel.xEnd();
+            strcpy(yAcel.unitText,"ygs\0");
+            yAcel.unitFont = u8g2_font_t0_12_tf;
+            yAcel.unitLocation(1,10);
+            yAcel.initialize(99);
+            lat.y0 = speed.yEndBottom() + 15;
+            lat.digitFont = u8g2_font_6x12_mn;
+            lat.unitFont = u8g2_font_5x7_tr;
+            strcpy(lat.unitText,"*\0");
+            strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
+            lat.maxVal = -100.1234;
+            lat.initialize(-100.1234);
+            lon.y0 = speed.yEndBottom() + 15;
+            lon.digitFont = u8g2_font_6x12_mn;
+            lon.unitFont = u8g2_font_5x7_tr;
+            lon.x0 = lat.xEnd() + 30;
+            strcpy(lon.unitText,"*\0");
+            strcpy(lon.printFormat,"%6.4f\0");
+            lon.maxVal = -100.1234;
+            lon.initialize(-100.1234);
+            logButton.x0 = 190;
+            logButton.y0 = 120;
+            logButton.setText("LOG");
+            logButton.initialize();
+            logButton.assignAction(&changeLogging_state);
+            menuButton.x0 = 20;
+            menuButton.y0 = 120;
+            menuButton.setText("MENU");
+            menuButton.initialize();
+            u8g2.sendBuffer();
+            initialized = true;
+        }
+        
+        void display()
+        {
+            if(initialized) // check if we have been initialized
+            {
+                updateRequest = false;
+                tap.detect();
+                logButton.read();
+                menuButton.read();
+                tachometer.display(engRPM);
+                GPS_status.displayGPS_status();
+                loggingStatusMessage.displayLog_status();
+                date.displayDate();
+                speed.display(gpsSpeed);
+                xAcel.display(xAccel/10); // display acceleration in 10ths of a G
+                yAcel.display(yAccel/10);
+                lat.display(latitude);
+                lon.display(longitude);
+                
+                
+                //speed.updateArea();
+                if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
+                {
+                    u8g2.sendBuffer();
+                    lastDisplayUpdate = millis();
+                }
+            }
+            else // initialize the display
+            {
+                initialize();
+            }
+        }
+
+};
+
+class myInsightScreen
+{
+    private:
+        bool initialized = false; // track if the screen has been initialized
+        boxGauge tachometer;
+        digitalGauge speed;
+        digitalGauge xAcel;
+        digitalGauge yAcel;
+        digitalGauge lat;
+        digitalGauge lon;
+        digitalGauge oilPressGauge;
+        digitalGauge AFR;
+        //digitalGauge TPSval{99,0,100}; // must use braces otherwise treats as a function
+        statusMessage GPS_status;
+        statusMessage loggingStatusMessage;
+        statusMessage date;
+        button logButton;
+        //button menuButton;
+    public:
+        void initialize()
+        {
+            u8g2.clearBuffer();
+            GPS_status.y0 = 8;
+            GPS_status.initialize("GPS: ","Disconnected");
+            loggingStatusMessage.y0 = 8;
+            loggingStatusMessage.x0 = GPS_status.xEnd() + 8;
+            loggingStatusMessage.offsetStatus(2);
+            loggingStatusMessage.initialize("LOG:","sdErr");
+            date.y0 = 8;
+            date.x0 = loggingStatusMessage.xEnd() + 5;
+            date.initialize("",constructDateTime(3).c_str());
+            tachometer.yStart = 12;
+            tachometer.redLine = 5800;
+            tachometer.max = 6500;
+            tachometer.cutoff = 2000;
+            tachometer.drawBoxGauge(1000);
+            strcpy(speed.printFormat,"%3.0f\0");
+            speed.initialize(88);
+            xAcel.maxVal = -99.0;
+            xAcel.x0 = speed.xEnd();
+            strcpy(xAcel.unitText,"xgs\0");
+            strcpy(xAcel.printFormat,"%+2.0f\0");
+            xAcel.unitFont = u8g2_font_t0_12_tf;
+            xAcel.unitLocation(1,10);
+            xAcel.initialize(99);
+            yAcel.maxVal = -99;
+            strcpy(yAcel.printFormat,"%+2.0f\0");
+            yAcel.x0 = xAcel.xEnd();
+            strcpy(yAcel.unitText,"ygs\0");
+            yAcel.unitFont = u8g2_font_t0_12_tf;
+            yAcel.unitLocation(1,10);
+            yAcel.initialize(99);
+            lat.y0 = speed.yEndBottom() + 15;
+            lat.digitFont = u8g2_font_6x12_mn;
+            lat.unitFont = u8g2_font_5x7_tr;
+            strcpy(lat.unitText,"*\0");
+            strcpy(lat.printFormat,"%6.4f\0"); // google maps uses 6 digits (.6f)
+            lat.maxVal = -100.1234;
+            lat.initialize(-100.1234);
+            lon.y0 = speed.yEndBottom() + 15;
+            lon.digitFont = u8g2_font_6x12_mn;
+            lon.unitFont = u8g2_font_5x7_tr;
+            lon.x0 = lat.xEnd() + 30;
+            strcpy(lon.unitText,"*\0");
+            strcpy(lon.printFormat,"%6.4f\0");
+            lon.maxVal = -100.1234;
+            lon.initialize(-100.1234);
+            logButton.x0 = 190;
+            logButton.y0 = 120;
+            logButton.setText("LOG");
+            logButton.initialize();
+            logButton.assignAction(&changeLogging_state);
+            // menuButton.x0 = 20;
+            // menuButton.y0 = 120;
+            // menuButton.setText("MENU");
+            // menuButton.initalize();
+            u8g2.sendBuffer();
+            initialized = true;
+        }
+        
+        void display()
+        {
+            if(initialized) // check if we have been initialized
+            {
+                updateRequest = false;
+                tap.detect();
+                logButton.read();
+                // menuButton.read();
+                tachometer.display(engRPM);
+                GPS_status.displayGPS_status();
+                loggingStatusMessage.displayLog_status();
+                date.displayDate();
+                speed.display(gpsSpeed);
+                xAcel.display(xAccel/10); // display acceleration in 10ths of a G
+                yAcel.display(yAccel/10);
+                lat.display(latitude);
+                lon.display(longitude);
+                TPSval.display(10);
+                
+                
+                //speed.updateArea();
+                if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
+                {
+                    u8g2.sendBuffer();
+                    lastDisplayUpdate = millis();
+                }
+            }
+            else // initialize the display
+            {
+                initialize();
+            }
+        }
+
+};
