@@ -1,6 +1,7 @@
 # ![img](JboxIcon.png)
 # J-Box
 https://youtu.be/rStGfmpCEOI
+
 J-Box is an open source data logger, dashboard, and instrumentation device. It is powered by a Teensy 3.6 and a 240 x 128 Graphic Touchscreen Display that interfaces with the Sparkfun NEO-M8U GPS Module for Speed, Position, and Acceleration data.
 
 It also has 8 analog inputs (0-5v) that are protected by a replaceable buffer board. This means you can feed any voltage (up to 32v rated) to the analog inputs without frying the microcontroller or the buffer chip. Two analog inputs have provisions for configurable pull up resistors for use with thermistors. Additionally there are two clamped digital inputs that can be used as a tachometer input and a backlight signal.
