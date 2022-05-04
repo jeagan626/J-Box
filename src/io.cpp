@@ -1,6 +1,8 @@
 #include "io.h"
 #include "globalData.h"
 #include <SoftPWM.h>
+#define IIR_FILTER(input, alpha, prior) (((long)input * (256 - alpha) + ((long)prior * alpha))) >> 8
+
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
 const uint8_t numPulses = 5;
@@ -91,7 +93,7 @@ void readIO()
     readTach();
     throttlePosition = map(analogRead(tpsPin),110,920,0,99);
     AirFuelRatio = lambdaConvert(analogRead(lambdaPin));
-    turbinePressure = TurbinePressureConvert(analogRead(turbinePressurePin));
+    turbinePressure = IIR_FILTER(TurbinePressureConvert(analogRead(turbinePressurePin)),10,turbinePressure);
     //turbinePressure = map(analogRead(turbinePressurePin),102,920,0,30);
     //extractSerialData();
 }
