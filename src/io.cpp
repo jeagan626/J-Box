@@ -103,7 +103,7 @@ void readIO()
     sampleBuffer[7][sampleIndex] = analogRead(turbinePressurePin);
     
     sampleIndex++;
-    if(sampleIndex >= numPulses) // if the sample index exceeds the array length
+    if(sampleIndex >= numSamples) // if the sample index exceeds the array length
     {
       sampleIndex = 0; // reset the sample index
     }
