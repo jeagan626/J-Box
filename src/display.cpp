@@ -567,12 +567,6 @@ void BakerFSAEscreen()
     lastGearUpdate = millis();
   }
 }
-
-void initializeEaganInsightScreen()
-{
-    //drawBoxGauge(rpm, 6500, 1000, 5800);
-}
-
 bool updateScreen = true; // this is a legacy variable used for the menuscreen function
 
 
@@ -1083,6 +1077,7 @@ class digitalGauge
     int x0 = 0;
     int y0 = screeny/2+20;
     float maxVal = 199;
+    int threshold = 5; // defines the minimum diffrence between values required for a update in tenths of a percent
 
     const uint8_t* digitFont = u8g2_font_logisoso30_tr;
     const uint8_t* unitFont = u8g2_font_VCR_OSD_mf;
@@ -1170,7 +1165,7 @@ class digitalGauge
           //initialize(val); // initialize the display
           return; // dont do anything more
         }
-        if( abs(((lastVal - val) * 200) / maxVal) < 1) // if the diffrence between the values is less than .5% 
+        if( abs(((lastVal - val) * 1000) / maxVal) < threshold) // if the diffrence between the values is less than .5% 
         {
           return; // don't do anything if no updates need to be made to save time
         }
@@ -1235,6 +1230,11 @@ class digitalGauge
         digitFont = u8g2_font_VCR_OSD_mf;
         unitFont = u8g2_font_6x12_tr;
         initialize(maxVal);
+    }
+    void initializeMediumGauge(int x, int y, float maximumVal, const char * format,const char * unit, int updateThreshold)
+    {
+        threshold = updateThreshold;
+        initializeMediumGauge(x,y,maximumVal,format,unit);
     }
     void initializeLargeGauge(float val)
     {
@@ -1327,6 +1327,13 @@ class button
     {
         actionFunction = myFunction;
         actionAssigned = true;
+    }
+    void initialize(int x, int y, const char* text, void (*action)() )
+    {
+        setText(text);
+        x0 = x; y0 = y;
+        initialize();
+        assignAction(action);
     }
     void draw()
     {
@@ -1621,15 +1628,15 @@ void initializeInsightScreen()
     //strcpy(speed.printFormat,"%3.0f\0");
     speed.y0 = 74;
     speed.initializeLargeGauge(88);
-    AFR.initializeMediumGauge(speed.xEnd()+5,60,22.0,"%3.1f","AFR");
+    AFR.initializeMediumGauge(speed.xEnd()+5,60,22.0,"%3.1f","AFR",50);
     knock.initializeMediumGauge(speed.xEnd()+5,78,22.0,"%3.1f","KNK");
-    xAcel.initializeMediumGauge(190,50,-99,"%+2.0f","xg");
-    yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg");
-    oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi");
-    TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%");
-    MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa");
-    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,15,"%3.0f","psi");
-    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi");
+    xAcel.initializeMediumGauge(190,50,-99,"%+2.0f","xg",20);
+    yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg",20);
+    oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi",50);
+    TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%",20);
+    MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa",20);
+    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,150,"%3.0f","psi",20);
+    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi",5);
     BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
     BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
     // xAcel.maxVal = -99.0;

@@ -38,9 +38,8 @@ void loop() {
   if(lastLogEntry > 40)
   {
     actionTime = 0;
-    readIO();
+    processIO();
     ioReadTime = actionTime; // note the time taken to extract the serial data
-    
     actionTime = 0;
     logData();
     dataLogTime = actionTime;

@@ -3,9 +3,15 @@
 #include <SoftPWM.h>
 #define IIR_FILTER(input, alpha, prior) (((long)input * (256 - alpha) + ((long)prior * alpha))) >> 8
 
+IntervalTimer sampleTimer;
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
 const uint8_t numPulses = 5;
+const int sampleFrequency = 200;
+const int numSamples = 10;
+volatile uint8_t sampleIndex = 0; // used to record to samples
+volatile int sampleBuffer[8][numSamples] = {0}; // sample buffer holds the samples for each of the analog inputs
+
 volatile unsigned long pulseTime[numPulses] = {0}; // keep track of the last 10 pulse times
 volatile uint8_t pulseIndex = 0; // used to record to pulsetime
 unsigned int pulseDeltaTimes[numPulses]; // keep track of the last 10 pulse times
@@ -72,6 +78,7 @@ void initializeIO()
     pinMode(fuelPressSensorPin,INPUT);
     pinMode(tachPin,INPUT_PULLUP);
     attachInterrupt(tachPin,tachPulseEvent,FALLING);
+    sampleTimer.begin(readIO,(1000000 / sampleFrequency));
     pinMode(0,INPUT);
     pinMode(auxLSpin,OUTPUT);
     digitalWrite(auxLSpin,LOW); // make sure this is low for now
@@ -85,17 +92,33 @@ void initializeIO()
 
 void readIO()
 {
-    oilPressure = OilPressureConvert(analogRead(oilPressSensorPin));
-    MAP = MAPConvert(analogRead(mapPin));
-    rawEcuMapReading = analogRead(ecuMapPin);
-    rawEcuIatReading = analogRead(iatPin);
-    fuelPressure = FuelPressureConvert(analogRead(fuelPressSensorPin));
+  
+    sampleBuffer[0][sampleIndex] = analogRead(oilPressSensorPin);
+    sampleBuffer[1][sampleIndex] = analogRead(mapPin);
+    sampleBuffer[2][sampleIndex] = analogRead(ecuMapPin);
+    sampleBuffer[3][sampleIndex] = analogRead(iatPin);
+    sampleBuffer[4][sampleIndex] = analogRead(fuelPressSensorPin);
+    sampleBuffer[5][sampleIndex] = analogRead(tpsPin);
+    sampleBuffer[6][sampleIndex] = analogRead(lambdaPin);
+    sampleBuffer[7][sampleIndex] = analogRead(turbinePressurePin);
+    
+    sampleIndex++;
+    if(sampleIndex >= numPulses) // if the sample index exceeds the array length
+    {
+      sampleIndex = 0; // reset the sample index
+    }
+}
+void processIO()
+{
+    oilPressure = OilPressureConvert(averageSamples(sampleBuffer[0]));
+    MAP = MAPConvert(averageSamples(sampleBuffer[1]));
+    rawEcuMapReading = analogRead(averageSamples(sampleBuffer[2]));
+    rawEcuIatReading = analogRead(averageSamples(sampleBuffer[3]));
+    fuelPressure = FuelPressureConvert(averageSamples(sampleBuffer[4]));
     readTach();
-    throttlePosition = map(analogRead(tpsPin),110,920,0,99);
-    AirFuelRatio = lambdaConvert(analogRead(lambdaPin));
-    turbinePressure = IIR_FILTER(TurbinePressureConvert(analogRead(turbinePressurePin)),10,turbinePressure);
-    //turbinePressure = map(analogRead(turbinePressurePin),102,920,0,30);
-    //extractSerialData();
+    throttlePosition = map(averageSamples(sampleBuffer[5]),110,920,0,99);
+    AirFuelRatio = lambdaConvert(averageSamples(sampleBuffer[6]));
+    turbinePressure = TurbinePressureConvert(averageSamples(sampleBuffer[7]));
 }
 
 uint8_t lastPulseIndex = 0;
@@ -254,6 +277,21 @@ float getFmuGain(float boostPressure, float fuelPressure)
   {
     return 0;
   }
+}
+
+int averageSamples(volatile int n1[]) 
+{
+  double sum = 0; // to store sum value
+  // calculate sum value
+  //noInterrupts(); // stop interupts to capture all the samples
+  for (int i = 0; i < numSamples; ++i)
+  {
+    sum += n1[i];
+  }
+  //interrupts(); // return normal interupt function
+  // calculate average value
+  // and return to caller function
+  return sum/numSamples;
 }
 
 int lambdaConvert(int ADCval)
