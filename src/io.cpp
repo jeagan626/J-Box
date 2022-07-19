@@ -55,7 +55,7 @@ const int mapPin = A16;
 const int iatPin = A17;
 const int oilPressSensorPin = A18;
 const int fuelPressSensorPin = A19;
-const int auxLSpin = 12;
+const int auxLSpin = 30;
 const int tachPin = 28;
 
 float OilPressureConvert(int ADCval);
@@ -81,11 +81,10 @@ void initializeIO()
     sampleTimer.begin(readIO,(1000000 / sampleFrequency));
     pinMode(0,INPUT);
     pinMode(auxLSpin,OUTPUT);
+    analogWriteFrequency(auxLSpin,25); // set the PWM frequency on pin 30 to 25hz
     digitalWrite(auxLSpin,LOW); // make sure this is low for now
     //Serial1.begin(9600); // for old OBii C&C software
     Serial1.begin(38400,SERIAL_8N1_RXINV); // for new obdII C&C software
-    // SoftPWMBegin(SOFTPWM_NORMAL);
-    // SoftPWMSet(auxLSpin,40);
 
 
 }
@@ -191,13 +190,16 @@ void readTach()
 }
 void dumbBoostControl()
 {
-  if( MAP < 130 && engRPM > 2000 && throttlePosition > 60)
+  if( MAP < 150 && engRPM > 2000 && throttlePosition > 60)
   {
-    digitalWrite(auxLSpin,HIGH);
+    analogWrite(auxLSpin,50);
+    //digitalWrite(auxLSpin,HIGH);
   }
   else
   {
+    //analogWrite(auxLSpin,50);
     digitalWrite(auxLSpin,LOW);
+    //digitalWrite(auxLSpin,HIGH);
   }
 }
 float OilPressureConvert(int ADCval)
@@ -236,7 +238,7 @@ float TurbinePressureConvert(int ADCval)
   //   return (0);
   // }
   // float TurbinePressure = (.0376 * ADCval) - 2.781;
-  float TurbinePressure = map(ADCval,102,920,0,150);
+  float TurbinePressure = map(ADCval,102,920,0,100); // use Kpa 14.7Psi = 100kpa
   TurbinePressure = constrain(TurbinePressure,0,400);
   return TurbinePressure;
 }
@@ -247,7 +249,7 @@ float MAPConvert(int ADCval)
   {
   return(999);
   }
-  float MAP = (ADCval + 3.611) / 3.253;
+  float MAP = (float(ADCval) + 3.611) / 3.253;
   return MAP;
 }
 

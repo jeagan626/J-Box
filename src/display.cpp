@@ -1419,7 +1419,10 @@ void changeLogging_state()
 {
     loggingActive = !loggingActive;
 }
-
+void reconnectGPS()
+{
+    initializeGPS();
+}
 // objects used for menu screen
 button M3ScreenButton;
 button scRacingScreenButton;
@@ -1445,9 +1448,9 @@ void initializeMenuScreen()
     //insightScreenButton.assignAction(&initializeEaganInsightScreen);
     scRacingScreenButton.x0 = 10;
     scRacingScreenButton.y0 = 100;
-    scRacingScreenButton.setText("USC Racing Screen");
+    scRacingScreenButton.setText("Reconnect GPS");
     scRacingScreenButton.initialize();
-    scRacingScreenButton.assignAction(&initializeBakerFSAEscreen);
+    scRacingScreenButton.assignAction(&reconnectGPS);
     // u8g2.setDrawColor(0); // set this to zero so that we get a black background against the font
     // u8g2.drawStr(0,40,"Device Settings");
     // u8g2.drawStr(0,60,"Option 2");
@@ -1477,6 +1480,7 @@ statusMessage loggingStatusMessage;
 statusMessage date;
 button logButton;
 button menuButton;
+button gpsButton;
 void initializeEaganM3_Screen()
 {
     u8g2.clearBuffer();
@@ -1604,7 +1608,7 @@ void insightScreen()
     //lat.display(latitude);
     //lon.display(longitude);
     menuButton.read(); // note if this is placed earlier when pressed the menu screen will load and then the current screen function will run where it left off
-    
+    gpsButton.read();
     //speed.updateArea();
 }
 void initializeInsightScreen()
@@ -1635,7 +1639,7 @@ void initializeInsightScreen()
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi",50);
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%",20);
     MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa",20);
-    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,150,"%3.0f","psi",20);
+    turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,150,"%3.0f","kPa",20);
     fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi",5);
     BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
     BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
@@ -1680,6 +1684,7 @@ void initializeInsightScreen()
     menuButton.setText("MENU");
     menuButton.initialize();
     menuButton.assignAction(&initializeMenuScreen);
+    gpsButton.initialize(70,127,"GPS",reconnectGPS);
     u8g2.sendBuffer();
     screenPointer = &insightScreen; // change the screen pointer to display the insightscreen now
 }
@@ -1888,6 +1893,7 @@ class myInsightScreen
         statusMessage loggingStatusMessage;
         statusMessage date;
         button logButton;
+        
         //button menuButton;
     public:
         void initialize()
