@@ -111,8 +111,8 @@ void processIO()
 {
     oilPressure = OilPressureConvert(averageSamples(sampleBuffer[0]));
     MAP = MAPConvert(averageSamples(sampleBuffer[1]));
-    rawEcuMapReading = analogRead(averageSamples(sampleBuffer[2]));
-    rawEcuIatReading = analogRead(averageSamples(sampleBuffer[3]));
+    rawEcuMapReading = averageSamples(sampleBuffer[2]);
+    rawEcuIatReading = averageSamples(sampleBuffer[3]);
     fuelPressure = FuelPressureConvert(averageSamples(sampleBuffer[4]));
     readTach();
     throttlePosition = map(averageSamples(sampleBuffer[5]),110,920,0,99);
@@ -283,6 +283,7 @@ float getFmuGain(float boostPressure, float fuelPressure)
 
 int averageSamples(volatile int n1[]) 
 {
+  
   double sum = 0; // to store sum value
   // calculate sum value
   //noInterrupts(); // stop interupts to capture all the samples

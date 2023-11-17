@@ -1598,7 +1598,7 @@ void insightScreen()
     knock.display(knockValue/10.0);
     oilPressGauge.display(oilPressure);
     TPSval.display(throttlePosition);
-    MAPval.display(MAP);
+    MAPval.display(rawEcuMapReading);
     turbinePressureGauge.display(turbinePressure);
     fuelPressureGauge.display(fuelPressure);
     BatteryCurrent.display((hybridBatteryCurrent/100));
@@ -1638,7 +1638,7 @@ void initializeInsightScreen()
     yAcel.initializeMediumGauge(190,75,-99,"%+2.0f","yg",20);
     oilPressGauge.initializeMediumGauge(0,92,99,"%2.0f","psi",50);
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%",20);
-    MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa",20);
+    MAPval.initializeMediumGauge(speed.xEnd()+15,96,1023,"%3.0f","kPa",20);
     turbinePressureGauge.initializeMediumGauge(MAPval.xEnd()+5,96,150,"%3.0f","kPa",20);
     fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi",5);
     BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
