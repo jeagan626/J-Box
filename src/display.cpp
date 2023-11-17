@@ -208,6 +208,7 @@ unsigned long lastLapTimeUpdate;
 unsigned long lapTimeStart;
 unsigned long lastGearUpdate;
 // unsigned long lastTimeUpdate;
+int brightness = 100;
 int mph=0;
 int rpm=0;
 int cutoff = 2000;
@@ -452,6 +453,7 @@ void displayScreen()
 {
   updateRequest = false;
   tap.detect();
+
   screenPointer(); // pull up the screen pointed to by the screen pointer
   
   if(updateRequest || millis() - lastDisplayUpdate > 500) // update the display atleast twice per second
@@ -459,6 +461,8 @@ void displayScreen()
     u8g2.sendBuffer();
     lastDisplayUpdate = millis();
     }
+    
+lastScreen = screenPointer;
 }
 
 void initializeBakerFSAEscreen()
@@ -1427,7 +1431,8 @@ void reconnectGPS()
 button M3ScreenButton;
 button scRacingScreenButton;
 button insightScreenButton;
-void initializeInsightScreen(); // need function declaration before being called in menu screen
+button deviceSettingsButton;
+//void initializeInsightScreen(); // need function declaration before being called in menu screen
 void initializeMenuScreen()
 {
     u8g2.clearBuffer();
@@ -1441,13 +1446,13 @@ void initializeMenuScreen()
     M3ScreenButton.initialize();
     M3ScreenButton.assignAction(&initializeEaganM3_Screen);
     insightScreenButton.x0 = 10;
-    insightScreenButton.y0 = 70;
+    insightScreenButton.y0 = 65;
     insightScreenButton.setText("Insight Screen");
     insightScreenButton.initialize();
     insightScreenButton.assignAction(&initializeInsightScreen);
     //insightScreenButton.assignAction(&initializeEaganInsightScreen);
     scRacingScreenButton.x0 = 10;
-    scRacingScreenButton.y0 = 100;
+    scRacingScreenButton.y0 = 90;
     scRacingScreenButton.setText("Reconnect GPS");
     scRacingScreenButton.initialize();
     scRacingScreenButton.assignAction(&reconnectGPS);
@@ -1455,6 +1460,7 @@ void initializeMenuScreen()
     // u8g2.drawStr(0,40,"Device Settings");
     // u8g2.drawStr(0,60,"Option 2");
     // u8g2.drawStr(0,80,"Acceleration Tests");
+    deviceSettingsButton.initialize(10,115,"Settings",&initializeDeviceSettingsScreen);
     u8g2.sendBuffer();
     // u8g2.setDrawColor(1); // reset the draw color back to the default
     screenPointer = &menuScreen; // switch to the menu screen from now on
@@ -1462,10 +1468,11 @@ void initializeMenuScreen()
 
 void menuScreen()
 {
-    tap.detect();
+    // tap.detect(); // now in the primary display screen function
     M3ScreenButton.read();
     insightScreenButton.read();
     scRacingScreenButton.read();
+    deviceSettingsButton.read();
 }
 
 //objects used for M3 screen
@@ -1688,6 +1695,43 @@ void initializeInsightScreen()
     u8g2.sendBuffer();
     screenPointer = &insightScreen; // change the screen pointer to display the insightscreen now
 }
+
+button brightnessUpButton;
+button brightnessDownButton;
+void decreaseBrightness()
+{
+    brightness = brightness - 16;
+    brightness = constrain(brightness,0,255);
+    analogWrite(backlightPin,brightness);
+}
+void increaseBrightness()
+{
+    brightness = brightness + 16;
+    brightness = constrain(brightness,0,255);
+    analogWrite(backlightPin,brightness);
+}
+void initializeDeviceSettingsScreen()
+{
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_VCR_OSD_mf); //u8g2_font_9x15B_mr
+    u8g2.drawStr(32,18,"Settings");
+    u8g2.drawStr(10,40,"Brightness");
+    u8g2.drawLine(0,19,240,19);
+    ///u8g2.setFontMode(0); // shoulnt need to change this as it is the default
+    menuButton.initialize(10,17,"<",&initializeMenuScreen);
+    brightnessDownButton.initialize(135,40,"-",&decreaseBrightness);
+    brightnessUpButton.initialize(160,40,"+",&increaseBrightness);
+    u8g2.sendBuffer();
+    // u8g2.setDrawColor(1); // reset the draw color back to the default
+    screenPointer = &deviceSettingsScreen; // switch to the menu screen from now on
+}
+void deviceSettingsScreen()
+{
+    menuButton.read();
+    brightnessDownButton.read();
+    brightnessUpButton.read();
+}
+
 // void menuScreen()  // legacy menu screen
 // {
 //     screenPointer = &menuScreen; // switch to the menu screen from now on
