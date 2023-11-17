@@ -16,10 +16,12 @@ void BakerFSAEscreen();
 //class performanceTestScreen
 
 void initializeMenuScreen();
+void initializeDeviceSettingsScreen();
+void deviceSettingsScreen();
 void initializeEaganM3_Screen();
 void EaganM3_Screen();
 void displayScreen();
-void initializeEaganInsightScreen();
+void initializeInsightScreen();
 void drawMph(int mph);
 void drawRpm(int rpm);
 void drawBoxGauge(int current, int max, int cutoff = 4000, int redLine = 10000);
