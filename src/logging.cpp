@@ -57,6 +57,7 @@ unsigned int rtc_ms()
 }
 void millisecondUpdate() // this might not be a good idea since the loop speed may be slow enough to constantly reset miliseconds mid second
 {
+  // note if the time library uses millis() why cant milliseconds just be millis() mod 1000
   if(second() - lastSeconds != 0) // if one second has passed
   {
     lastSeconds = second(); // reset the counter
@@ -190,14 +191,23 @@ void logData()
     }
     dataFile.open(logFileDir, FILE_WRITE);
    ///* Preview of the data writing process
-              char dataString [256] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
-              sprintf(dataString,"%s,%3.6f,%3.6f,%1.1f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%u,%u,%u,%u,%u,%u\n",
+              char dataString [280] = "\nData ERROR\n\n"; // if there is a problem for some reason go down a line and make a note of it
+              sprintf(dataString,"%s,%3.6f,%3.6f," //constructDateTime(4).c_str(),latitude,longitude,
+              "%1.1f,%i,%i,%i" //gpsSpeed,xAccel,yAccel,engRPM,
+              "%i,%i,%i" //throttlePosition,rawEcuMapReading,MAP,
+              "%i,%i,%i," //turbinePressure,intakeAirTemp,rawEcuIatReading,
+              "%3.1f,%3.1f,%3.1f," //knockValue/10.0,ecuTiming/10.0,ecuAFR/10.0,
+              "%4.2f,%i,%3.1f," // AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0,
+              "%i,%3.1f,%i," //hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp,
+              "%u,%u,%u,%u,%u,%u\n", //serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime
+              // I think I am missing a %u here which is why main loop time does not log
               constructDateTime(4).c_str(),latitude,longitude,
-              gpsSpeed,xAccel,yAccel,
-              engRPM,throttlePosition,
-              rawEcuMapReading,MAP,turbinePressure,intakeAirTemp,
-              rawEcuIatReading,knockValue,ecuTiming,ecuAFR,AirFuelRatio,fuelPressure,
-              hybridBatteryCharge,hybridBatteryVoltage,hybridBatteryCurrent,hybridBatteryTemp,
+              gpsSpeed,xAccel,yAccel,engRPM,
+              throttlePosition,rawEcuMapReading,MAP,
+              turbinePressure,intakeAirTemp,rawEcuIatReading,
+              knockValue/10.0,ecuTiming/10.0,ecuAFR/10.0,
+              AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0,
+              hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp,
               serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
               dataFile.print(dataString);
               //*/

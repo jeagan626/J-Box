@@ -7,8 +7,8 @@ IntervalTimer sampleTimer;
 volatile int tachPulse = 0;
 volatile int pulseCount = 0;
 const uint8_t numPulses = 5;
-const int sampleFrequency = 200;
-const int numSamples = 10;
+const int sampleFrequency = 240;
+const int numSamples = 8;
 volatile uint8_t sampleIndex = 0; // used to record to samples
 volatile int sampleBuffer[8][numSamples] = {0}; // sample buffer holds the samples for each of the analog inputs
 
@@ -90,7 +90,7 @@ void initializeIO()
 }
 
 void readIO()
-{
+{ // cleanup sample buffer could recognize 
   
     sampleBuffer[0][sampleIndex] = analogRead(oilPressSensorPin);
     sampleBuffer[1][sampleIndex] = analogRead(mapPin);
