@@ -191,15 +191,22 @@ void logData()
     }
     dataFile.open(logFileDir, FILE_WRITE);
    ///* Preview of the data writing process
-              char dataString [8][280] = {"\nData ERROR\n\n"}; // if there is a problem for some reason go down a line and make a note of it
+              char dataString [10][280] = {"\nData ERROR\n\n"}; // if there is a problem for some reason go down a line and make a note of it
               sprintf(dataString[0],"%s,%3.6f,%3.6f,", constructDateTime(4).c_str(),latitude,longitude);
-              sprintf(dataString[1],"%1.1f,%i,%i,%i",gpsSpeed,xAccel,yAccel,engRPM);
-              sprintf(dataString[2],"%i,%i,%i", throttlePosition,rawEcuMapReading,MAP);
+              sprintf(dataString[1],"%1.1f,%i,%i,%i,",gpsSpeed,xAccel,yAccel,engRPM);
+              sprintf(dataString[2],"%i,%i,%i,", throttlePosition,rawEcuMapReading,MAP);
               sprintf(dataString[3],"%i,%i,%i,",turbinePressure,intakeAirTemp,rawEcuIatReading);
               sprintf(dataString[4],"%3.1f,%3.1f,%3.1f,", knockValue/10.0,ecuTiming/10.0,ecuAFR/10.0);
               sprintf(dataString[5],"%4.2f,%i,%3.1f,", AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0);
               sprintf(dataString[6],"%i,%3.1f,%i,", hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp);
-              sprintf(dataString[7],"%u,%u,%u,%u,%u,%u\n", serialExtractTime,gpsUpdateTime,displayUpdateTime,mainLoopTime,ioReadTime,dataLogTime);
+              // serialExtractTime = 98390821;
+              // gpsUpdateTime = 91097194;
+              // ioReadTime = -96969;
+              sprintf(dataString[7],"%u,%u,%u,",serialExtractTime,gpsUpdateTime,ioReadTime);
+              // displayUpdateTime = 7287984;
+              // mainLoopTime = 248198;
+              // dataLogTime = 80088008;
+              sprintf(dataString[8],"%u,%u,%u\n", dataLogTime,displayUpdateTime,mainLoopTime);
               // // I think I am missing a %u here which is why main loop time does not log
               // constructDateTime(4).c_str(),latitude,longitude,
               // gpsSpeed,xAccel,yAccel,engRPM,
@@ -209,7 +216,7 @@ void logData()
               // AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0,
               // hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp,
               // serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
-              for(int i = 0; i < 8; i++)
+              for(int i = 0; i < 10; i++)
               {
                 dataFile.print(dataString[i]);
               }
@@ -233,3 +240,5 @@ void logData()
 // also consider passing a pointer to the log variables and writing the filewithin a for loop for cleaner code
 // also maybe preparing a string and just writing that would be more time efficent
 // although logging does not seem to consume much processor time
+char mystr[] = "Time,Lat,Long,Speed,Xg,Yg,RPM,TPS,rawEcuMapReading,MAP,EPress,IAT,rawEcuIatReading,KNK,ecuTiming,ecuAFR,AFR,FuelPress,HybridBatteryCharge,HybridVoltage,HybridCurrent,BatteryTemp,serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,loopTime";
+char mystre[] = "00:08:50.496,0.000000,0.000000,0.0,0,0,0-13,5,20,0,5,0.0,0.0,0.0,7.42,0,0.0,0,0.0,0,98390821,91097194,4294870327,80088008,7287984,248198";
