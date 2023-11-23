@@ -198,7 +198,7 @@ void logData()
               sprintf(dataString[3],"%i,%i,%i,",turbinePressure,intakeAirTemp,rawEcuIatReading);
               sprintf(dataString[4],"%3.1f,%3.1f,%3.1f,", knockValue/10.0,ecuTiming/10.0,ecuAFR/10.0);
               sprintf(dataString[5],"%4.2f,%i,%3.1f,", AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0);
-              sprintf(dataString[6],"%i,%3.1f,%i,", hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp);
+              sprintf(dataString[6],"%i,%3.1f,%i,", hybridBatteryVoltage,hybridBatteryCurrent/100.0,hybridBatteryTemp);
               // serialExtractTime = 98390821;
               // gpsUpdateTime = 91097194;
               // ioReadTime = -96969;
@@ -216,7 +216,7 @@ void logData()
               // AirFuelRatio/100.0,fuelPressure,hybridBatteryCharge/10.0,
               // hybridBatteryVoltage,hybridBatteryCurrent/10.0,hybridBatteryTemp,
               // serialExtractTime,gpsUpdateTime,ioReadTime,dataLogTime,displayUpdateTime,mainLoopTime);
-              for(int i = 0; i < 10; i++)
+              for(int i = 0; i < 9; i++)
               {
                 dataFile.print(dataString[i]);
               }

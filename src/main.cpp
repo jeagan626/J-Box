@@ -26,6 +26,8 @@ void setup() {
 
 void loop() {
   mainLoopTime = loopTime;
+  ioReadTime = 0; // reset the io read time since we may not read the IO at all during this loop
+  dataLogTime = 0;
   loopTime = 0;
   actionTime = 0;
   extractSerialData();
@@ -41,7 +43,7 @@ void loop() {
     processIO();
     ioReadTime = actionTime; // note the time taken to extract the serial data
     actionTime = 0;
-    logData();
+    logData(); // think really hard about what the times will actually be when you log because multiple loops get run between logs
     dataLogTime = actionTime;
     
     lastLogEntry = 0;
