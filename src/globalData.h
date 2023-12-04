@@ -14,7 +14,7 @@ extern int knockValue;
 extern int maxKnockValue;
 extern int AirFuelRatio;
 extern int turbinePressure;
-
+extern int flexSensorReading;
 extern int hybridBatteryVoltage;
 extern int engLoad;
 extern int hybridBatteryCurrent;

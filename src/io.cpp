@@ -4,8 +4,10 @@
 #define IIR_FILTER(input, alpha, prior) (((long)input * (256 - alpha) + ((long)prior * alpha))) >> 8
 
 IntervalTimer sampleTimer;
+IntervalTimer flexSensorTimer;
 volatile int tachPulse = 0;
-volatile int pulseCount = 0;
+volatile int flexPulseCount = 0;
+volatile int flexPulse = 0;
 const uint8_t numPulses = 5;
 const int sampleFrequency = 240;
 const int numSamples = 8;
@@ -31,12 +33,22 @@ void tachPulseEvent()
   }
   tachPulse++;
 }
-void pulseTally()
+void flexPulseEvent()
+{
+  flexPulse++;
+}
+void flexPulseTally()
 {
   noInterrupts();
-  pulseCount = tachPulse;
-  tachPulse = 0;
+  flexPulseCount = flexPulse;
+  flexPulse = 0;
   interrupts();
+  flexSensorReading = flexPulseCount - 50;
+  if(flexSensorReading < 0 || flexSensorReading > 100) // if the flex sensor be tripping
+  {
+    flexSensorReading = -99; // return an obviously wrong value
+  }
+
 }
 
 
@@ -57,6 +69,7 @@ const int oilPressSensorPin = A18;
 const int fuelPressSensorPin = A19;
 const int auxLSpin = 30;
 const int tachPin = 28;
+const int flexSensorPin = 11;
 
 float OilPressureConvert(int ADCval);
 float FuelPressureConvert(int ADCval);
@@ -77,8 +90,11 @@ void initializeIO()
     pinMode(oilPressSensorPin,INPUT);
     pinMode(fuelPressSensorPin,INPUT);
     pinMode(tachPin,INPUT_PULLUP);
+    pinMode(flexSensorPin,INPUT);
     attachInterrupt(tachPin,tachPulseEvent,FALLING);
+    attachInterrupt(flexSensorPin,flexPulseEvent,FALLING);
     sampleTimer.begin(readIO,(1000000 / sampleFrequency));
+    flexSensorTimer.begin(flexPulseTally,1000000);
     pinMode(0,INPUT);
     pinMode(auxLSpin,OUTPUT);
     analogWriteFrequency(auxLSpin,25); // set the PWM frequency on pin 30 to 25hz

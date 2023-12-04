@@ -9,6 +9,7 @@ int knockValue = 0;
 int maxKnockValue = 0;
 int AirFuelRatio = 0;
 int turbinePressure = 0;
+int flexSensorReading = 0;
 
 int hybridBatteryVoltage = 0;
 int engLoad = 0;

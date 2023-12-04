@@ -1607,7 +1607,7 @@ void insightScreen()
     TPSval.display(throttlePosition);
     MAPval.display(MAP);
     rawECUmap.display(rawEcuMapReading);
-    fuelPressureGauge.display(fuelPressure);
+    fuelPressureGauge.display(flexSensorReading); //fuelPressureGauge.display(fuelPressure);
     BatteryCurrent.display((hybridBatteryCurrent/100));
     BatteryVoltage.display(hybridBatteryVoltage);
     xAcel.display(xAccel/10); // display acceleration in 10ths of a G
@@ -1647,7 +1647,7 @@ void initializeInsightScreen()
     TPSval.initializeMediumGauge(oilPressGauge.xEnd()+5,92,101,"%2.0f","%",20);
     MAPval.initializeMediumGauge(speed.xEnd()+15,96,300,"%2.0f","kPa",20);
     rawECUmap.initializeMediumGauge(MAPval.xEnd()+5,96,1023,"%3.0f","raw",20);
-    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi",5);
+    fuelPressureGauge.initializeMediumGauge(speed.xEnd()+20,114,200,"%3.0f","%et",5); //fuelPressureGauge.initializeMediumGauge(speed.xEnd()+15,114,200,"%3.0f","psi",5);
     BatteryCurrent.initializeMediumGauge(0,110,-140,"%+2.0f","A");
     BatteryVoltage.initializeMediumGauge(BatteryCurrent.xEnd()+5,110,200,"%2.0f","V");
     // xAcel.maxVal = -99.0;
